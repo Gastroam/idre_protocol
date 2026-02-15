@@ -69,11 +69,11 @@ Good uses:
 - Suggest new fuzz cases, detect anomaly patterns, generate reports
 
 
-## 7) Neural Payload Compression (Resonant Dictionary)
+## 7) Neural Payload Compression (Resonant Dictionary) [DONE]
 
 Leverage the neural mechanics for efficiency:
 - **Resonant Dictionary**: Learn frequent patterns during a session.
 - **Dynamic Neuron IDs**: Replace recurring text/bytes with short 4-byte IDs.
 - **Session-Bound**: Dictionary is ephemeral and encrypted (no static lookup tables to steal).
 - **Target**: High-repetition traffic (protocol headers, chat commands, sensor data).
-- **Constraint**: Online-only initially (Offline Envelopes require static or self-contained dictionaries).
+- **Status**: Implemented as `NeuralCodec` / `VocabCodec`. Integrated into `node.py`.

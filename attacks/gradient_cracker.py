@@ -158,24 +158,24 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=7245, help="Target Seed (Simulated Victim)")
     parser.add_argument("--steps", type=int, default=2000)
+    parser.add_argument("--pepper", type=str, default="", help="Secret Pepper (Defense in Depth)")
     args = parser.parse_args()
 
     # 1. Simulate Victim (Generate Target Fingerprint)
     print(f"[*] Simulating Victim Node (Seed={args.seed})...")
+    if args.pepper:
+        print(f"    [!] Pepper Enabled: '{args.pepper}'")
+    
     # We create a temporary node to generate true bits
-    # We must match the config: planes=4, n_angles=72, backend=lattice?
-    # Actually backend doesn't matter for fingerprint calculation logic if we use 'frozen' for stability
-    # But wait, 'lattice' backend evolves! 
-    # The 'fingerprint_bits' function depends on the CURRENT weights.
-    # If the victim is fresh, it matches the anchor.
-    # We will crack the ANCHOR state (or current state).
+    # We match the config: planes=4, n_angles=72, backend=lattice?
     
     # Let's use `FieldBoundNode` to generate bits.
     from idre_clean.hive.node import FieldBoundNode
     victim = FieldBoundNode(
         node_id="VICTIM", seed=args.seed, anchor_seeds=(args.seed,), anchor_weight=80.0,
         n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
-        print_deliveries=False, print_events=False, freeze_field=True, backend="frozen"
+        print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
+        pepper=args.pepper
     )
     target_bits = victim.fingerprint_bits(args.seed)
     print(f"    Captured {len(target_bits)} bits.")

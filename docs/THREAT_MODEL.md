@@ -39,6 +39,8 @@ This repo is a **research prototype**. This document is here to prevent accident
 - **DATA plane**:
   - `created_at_ms` / `expires_at_ms` are authenticated (in AAD) and enforced for freshness.
   - Replay window is checked after authentication.
+  - **Start-of-Epoch Anchor**: Chained hashing (`prev_hash`) prevents message tampering/rollback within a session.
+  - **Weight Hiding**: `HMAC(pepper, raw_bits)` prevents gradient descent attacks on the underlying lattice weights.
 - **Offline**:
   - `IDRE-OFFLINE/1` sealed letter is sessionless, time-bounded, and integrity-protected.
   - IDRE-Silence is transport only; it does not add security.

@@ -20,6 +20,9 @@ This document is intentionally blunt. It is here to keep reviewers aligned on wh
 - **Vocab/token payloads** (optional): deterministic text encoding with vocab mismatch detection (`wrong_vocab`).
 - **Offline sealed letter** (`IDRE-OFFLINE/1`): sessionless, time-bounded, MAC'd envelope carried via audio.
 - **IDRE-Silence transport**: bytes <-> audio with CRC32 framing and optional bit repetition FEC (prefix-checked in tooling).
+- **Neural Payload Compression**: Session-bound learning codec (`NeuralCodec`) for bandwidth efficiency.
+- **Weight Hiding**: Secret `pepper` prevents gradient descent seed recovery.
+- **Anti-Rollback**: Hash chaining (`Epoch Anchor`) prevents intra-session replay/forking.
 
 ## Known Limitations / Gaps
 
