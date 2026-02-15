@@ -46,7 +46,45 @@ def unfold_basis(u: np.ndarray, w: np.ndarray, P_fold: np.ndarray) -> Tuple[np.n
     # Inverse of Orthogonal Matrix is Transpose
     P_unfold = P_fold.T 
     
-    u_prime = np.dot(u, P_unfold)
-    w_prime = np.dot(w, P_unfold)
-    
     return u_prime, w_prime
+
+class TopologyManager:
+    """
+    Manages the 'Ghost Topology' (Vector Space Folding).
+    Generates the Folding Matrix P_fold from a seed.
+    Derives the Unfolding Matrix P_unfold (Inverse) for probing.
+    """
+    def __init__(self, seed: int, dim: int):
+        self.seed = seed
+        self.dim = dim
+        self._P_fold: Optional[np.ndarray] = None
+        self._P_unfold: Optional[np.ndarray] = None
+        
+        # Initialize immediately for MVP (In real IDRE v3, P_fold might be hardware-bound)
+        self._generate_matrices()
+
+    def _generate_matrices(self):
+        self._P_fold = generate_orthonormal_matrix(self.dim, self.seed)
+        # Unfolding requires rotating the Probe Plane by P_fold to match the Folded Space
+        # So P_unfold is the SAME as P_fold (Rotation Matrix)
+        self._P_unfold = self._P_fold
+
+    @property
+    def folding_matrix(self) -> np.ndarray:
+        if self._P_fold is None:
+            self._generate_matrices()
+        return self._P_fold
+
+    @property
+    def unfolding_matrix(self) -> np.ndarray:
+        if self._P_unfold is None:
+            self._generate_matrices()
+        return self._P_unfold
+
+    def fold_substrate(self, weights: np.ndarray) -> np.ndarray:
+        """
+        Fold a weight matrix (Row vectors).
+        W_folded = W_true @ P_fold
+        """
+        return np.dot(weights, self.folding_matrix)
+

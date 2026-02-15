@@ -19,28 +19,20 @@ _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+# Also add parent directory to path to allow 'import idre_clean' to work
+_PARENT_DIR = os.path.dirname(_REPO_ROOT)
+if _PARENT_DIR not in sys.path:
+    sys.path.insert(0, _PARENT_DIR)
+
 try:
-    # Try importing from the package if installed/available
-    from scripts.hive_v12_node_server import FieldBoundNode, parse_int_tuple
+    from idre_clean.hive.node import FieldBoundNode
+    from idre_clean.hive.cli import parse_int_tuple
+    from idre_clean.hive.utils import canonical_json
 except ImportError:
-    # Fallback to direct file import if needed (though sys.path should handle it)
-    # This might require a bit of hackery if hive_v12_node_server isn't a proper module
-    # distinct from the script.
-    # Let's assume the sys.path insertion works for `idre_clean` imports inside the server script,
-    # but to import the server script *itself* as a module, we might need it to be importable.
-    # The file is `scripts/hive_v12_node_server.py`.
-    pass
-
-# We need to import FieldBoundNode from the script. 
-# Since it's in scripts/, and we are running from scripts/ (or root), let's fix imports.
-import importlib.util
-spec = importlib.util.spec_from_file_location("hive_v12_node_server", os.path.join(_REPO_ROOT, "scripts", "hive_v12_node_server.py"))
-hive_server_mod = importlib.util.module_from_spec(spec)
-sys.modules["hive_v12_node_server"] = hive_server_mod
-spec.loader.exec_module(hive_server_mod)
-
-FieldBoundNode = hive_server_mod.FieldBoundNode
-parse_int_tuple = hive_server_mod.parse_int_tuple
+    # If package is not installed, we rely on sys.path insert above
+    from hive.node import FieldBoundNode
+    from hive.cli import parse_int_tuple
+    from hive.utils import canonical_json
 
 
 class TestNode(FieldBoundNode):
@@ -51,58 +43,45 @@ class TestNode(FieldBoundNode):
         super().__init__(*args, **kwargs)
         self.received_messages: List[str] = []
 
-    def receive(self, msg: Dict[str, Any], prev_hop_id: str) -> Dict[str, Any]:
-        result = super().receive(msg, prev_hop_id)
+    # Intercept decryption to capture messages
+    # Note: We must override decrypt_bytes because regular DATA packets use it directly 
+    # (for Sliding Window trials), bypassing decrypt_message.
+    def decrypt_bytes(self, payload, *, session_id, nonce, ephemeral_salt, aad=b"", codec=None, ratchet_key=None):
+        # Call original decryption: returns (blob, reason, acks, tag)
+        blob, reason, acks, tag = super().decrypt_bytes(
+            payload, 
+            session_id=session_id, 
+            nonce=nonce, 
+            ephemeral_salt=ephemeral_salt, 
+            aad=aad,
+            codec=codec,
+            ratchet_key=ratchet_key
+        )
         
-        # If delivery was successful, we want to capture the decrypted text.
-        # But super().receive() does NOT return the text, only {"status": "delivered"}.
-        # So we must decrypt it ourselves here if the status is "delivered".
-        if result.get("status") == "delivered":
-             # Extract needed fields for decryption
-            session_id = str(msg.get("session_id", ""))
-            nonce = int(msg.get("nonce", 0))
-            # internal logic of receive() gets the session... we need to access it.
-            sess = self.sessions.get(prev_hop_id)
-            if sess:
-                # We need to reconstruct AAD to decrypt.
-                # The server code does:
-                # header = { ... keys from msg ... }
-                # aad = canonical_json(header)
-                # But we can cheat: The server *already* decrypted it successfully.
-                # For this test, let's just re-decrypt it. It's inefficient but fine for a test.
-                
-                # Reconstruct header for AAD exactly as the server does in receive()
-                header = {
-                    "type": str(msg.get("type", "")),
-                    "field_profile_id": str(msg.get("field_profile_id", "")),
-                    "session_id": str(msg.get("session_id", "")),
-                    "nonce": int(msg.get("nonce", 0)),
-                    "created_at_ms": int(msg.get("created_at_ms", 0)),
-                    "expires_at_ms": int(msg.get("expires_at_ms", 0)),
-                    "src_node_id": str(msg.get("src_node_id", "")),
-                    "dst_node_id": str(msg.get("dst_node_id", "")),
-                    "hop_count": int(msg.get("hop_count", 0)),
-                    "max_hops": int(msg.get("max_hops", 0)),
-                }
-                aad = hive_server_mod.canonical_json(header)
-                payload = msg.get("payload")
-                
-                # Decrypt
-                ok, text = self.decrypt_message(
-                    payload, 
-                    session_id=sess.session_id, 
-                    nonce=nonce, 
-                    ephemeral_salt=sess.ephemeral_salt, 
-                    aad=aad
-                )
-                if ok:
-                    self.received_messages.append(text)
-                    print(f"[{self.node_id}] CAPTURED: {text[:60]}...")
-                else:
-                    print(f"[{self.node_id}] FAILED TO RE-DECRYPT captured message")
-                    
-        return result
+        # If successful, capture the content
+        if blob is not None:
+             # Unpack plaintext
+             from idre_clean.hive.utils import unpack_plaintext
+             # blob is list[int], convert to bytes
+             ok_unpack, text = unpack_plaintext(bytes(blob))
+             if ok_unpack:
+                 self.received_messages.append(text)
+                 # print(f"[{self.node_id}] CAPTURED: {text[:60]}...")
+                 
+        return blob, reason, acks, tag
 
+
+
+# Helper to satisfy IDRE v3 Vocab Requirement
+def _get_dummy_vocab():
+    try:
+        from idre_clean.core.vocab_codec import Vocab
+    except ImportError:
+        from core.vocab_codec import Vocab
+        
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY_STREAM", lens_by_first_char={})
 
 def setup_node(node_id: str, seed: int, port: int) -> TestNode:
     return TestNode(
@@ -121,6 +100,7 @@ def setup_node(node_id: str, seed: int, port: int) -> TestNode:
         backend="frozen",
         content_codec="utf8",
         max_plaintext_bytes=65535,
+        vocab=_get_dummy_vocab(),  # Mandatory for Vector Folding
     )
 
 

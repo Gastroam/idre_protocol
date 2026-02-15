@@ -94,10 +94,21 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
 def configure_node_from_args(args) -> FieldBoundNode:
     vocab: Optional[Vocab] = None
     vocab_registry: Optional[Dict[bytes, Vocab]] = None
-    if str(args.content_codec).strip().lower() == "vocab":
-        if not args.vocab_file:
-            raise SystemExit("ERROR: --vocab-file required when --content-codec vocab")
+    # IDRE v3: Vocab is MANDATORY for Substrate Initialization (Vector Space Folding)
+    # regardless of content_codec.
+    if not args.vocab_file:
+         # Should be covered by default=["vocab.jsonl"] but safety first
+         args.vocab_file = ["vocab.jsonl"]
+    
+    try:
         vocab_registry, vocab = load_vocab_registry([str(x) for x in args.vocab_file])
+    except Exception as e:
+        # Fallback for testing/CI if vocab.jsonl is missing?
+        # No, strict security. But for now, let's print a warning and let it fail if file missing.
+        print(f"[hive.cli] WARNING: Failed to load vocab: {e}")
+        # Proceeding might fail in Node __init__
+        vocab = None
+        vocab_registry = None
 
     node = FieldBoundNode(
         node_id=args.node_id,

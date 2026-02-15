@@ -27,10 +27,9 @@ import random
 from typing import Dict, Any, Optional, List
 
 # --- Path Setup ---
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-sys.path.append(os.path.dirname(__file__))
+_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 # Import FieldBoundNode for Eve
 try:
@@ -39,8 +38,17 @@ except ImportError:
     try:
         from hive_v12_node_server import FieldBoundNode, canonical_json
     except ImportError:
-        print("[!] Failed to import FieldBoundNode. Ensure you are running from repo root.")
-        sys.exit(1)
+        # Fallback to direct library import if script wrapper not found
+        try:
+            from idre_clean.hive.node import FieldBoundNode
+            from idre_clean.hive.utils import canonical_json
+        except ImportError:
+            try:
+                from hive.node import FieldBoundNode
+                from hive.utils import canonical_json
+            except ImportError:
+                print("[!] Failed to import FieldBoundNode. Ensure you are running from repo root.")
+                sys.exit(1)
 
 # --- Helpers ---
 
@@ -179,7 +187,7 @@ def main():
     
     p_a = 8895
     p_b = 8896
-    vocab_path = os.path.join(root_dir, "vocab_small.json")
+    vocab_path = os.path.join(_REPO_ROOT, "vocab_small.json")
     
     proc_a = None
     proc_b = None

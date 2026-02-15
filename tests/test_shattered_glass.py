@@ -29,6 +29,13 @@ if parent_dir not in sys.path:
 
 from hive.node import FieldBoundNode
 from hive.session import HiveSession
+from core.vocab_codec import Vocab
+
+def _create_dummy_vocab():
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
+
 # We might need to mock idre_clean imports if they fail, or ensure the environment is right.
 try:
     from idre_clean.core.neural_codec import NeuralCodec
@@ -49,13 +56,15 @@ class TestShatteredGlass(unittest.TestCase):
         # Shared Cluster Secret (Pepper) allows Ratchet Sync
         # If Pepper differs, Ratchet Keys diverge immediately on first block.
         cluster_pepper = b"Shared_Hive_Secret_v1"
+        vocab = _create_dummy_vocab()
         
         # Node A: The Mainnet Anchor
         self.node_a = FieldBoundNode(
             node_id="A (Anchor)", seed=111111, anchor_seeds=(111111,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
-            pepper=cluster_pepper
+            pepper=cluster_pepper,
+            vocab=vocab
         )
         
         # Node B: The Node destined to Fork (The Clone)
@@ -63,7 +72,8 @@ class TestShatteredGlass(unittest.TestCase):
             node_id="B (Clone)", seed=222222, anchor_seeds=(222222,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
-            pepper=cluster_pepper
+            pepper=cluster_pepper,
+            vocab=vocab
         )
         
         # Node C: The Control Group (Stays with A)
@@ -71,7 +81,8 @@ class TestShatteredGlass(unittest.TestCase):
             node_id="C (Loyal)", seed=333333, anchor_seeds=(333333,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
-            pepper=cluster_pepper
+            pepper=cluster_pepper,
+            vocab=vocab
         )
 
         # 2. Establish Sessions (Manually forced for test speed)

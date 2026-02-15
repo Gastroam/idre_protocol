@@ -16,7 +16,13 @@ if parent_dir not in sys.path:
 
 from hive.node import FieldBoundNode, canonical_json
 from hive.session import HiveSession
+from core.vocab_codec import Vocab
 import struct
+
+def _create_dummy_vocab():
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -26,18 +32,21 @@ class TestResilience(unittest.TestCase):
     def setUp(self):
         # 1. Initialize Nodes with Shared Pepper
         cluster_pepper = b"Resilience_Test_Pepper"
+        vocab = _create_dummy_vocab()
         
         self.node_a = FieldBoundNode(
             node_id="A (Sender)", seed=111, anchor_seeds=(111,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
-            pepper=cluster_pepper
+            pepper=cluster_pepper,
+            vocab=vocab
         )
         self.node_b = FieldBoundNode(
             node_id="B (Receiver)", seed=222, anchor_seeds=(222,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
-            pepper=cluster_pepper
+            pepper=cluster_pepper,
+            vocab=vocab
         )
         
         # 2. Force Session
@@ -70,8 +79,9 @@ class TestResilience(unittest.TestCase):
         # Default is empty string?
         # Let's set a shared anchor
         anchor = "0xGenesisBlock"
-        self.node_a.sessions["B (Receiver)"].last_ratchet_hash = anchor
-        self.node_b.sessions["A (Sender)"].last_ratchet_hash = anchor
+        self.current_anchor = anchor.encode()
+        self.node_a.sessions["B (Receiver)"].chain_hash = self.current_anchor
+        self.node_b.sessions["A (Sender)"].chain_hash = self.current_anchor
 
     def test_packet_loss_recovery(self):
         logger.info("--- Testing Packet Loss Recovery (Windowed) ---")
@@ -94,11 +104,10 @@ class TestResilience(unittest.TestCase):
             }
             from hive.node import canonical_json
             aad_base = canonical_json(header)
-            anchor = "0xGenesisBlock"
-            aad = aad_base + anchor.encode() + struct.pack(">Q", seq_num)
+            aad = aad_base + self.current_anchor + struct.pack(">Q", seq_num)
             
             # 2. Encrypt
-            payload, _ = self.node_a.encrypt_message(
+            payload, tag = self.node_a.encrypt_message(
                 text, 
                 session_id="SESS_RESILIENCE", 
                 nonce=seq_num * 100, 
@@ -106,6 +115,21 @@ class TestResilience(unittest.TestCase):
                 ratchet_key=123456789,
                 aad=aad
             )
+            
+            # Update Anchor (Chain Hash Simulation) if we expect this to succeed/be processed
+            # But wait, if we skip Seq 2, Sender does NOT update chain hash for Seq 2?
+            # Correct. Sender skips Seq 2. 
+            # So Sender chain hash stays at State 1.
+            # So Seq 3 should use State 1 anchor.
+            
+            # If expect_success=True, Receiver WILL process it and update chain hash.
+            # So for NEXT packet, we need updated anchor.
+            if expect_success:
+                 import hashlib
+                 # Protocol Update: chain_hash = H(chain_hash + payload_bytes)
+                 # payload is List[int] from encrypt_message return
+                 payload_bytes = bytes(payload)
+                 self.current_anchor = hashlib.sha256(self.current_anchor + payload_bytes).digest()
             
             # 3. Receive
             msg = header.copy()

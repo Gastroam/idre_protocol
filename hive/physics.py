@@ -1,5 +1,5 @@
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from .utils import _sha256, _expand_bytes
 
 def derive_locked_plane(dims: int, domain: bytes = b"MTI/HIVE/V12/PLANE") -> Tuple[np.ndarray, np.ndarray]:
@@ -64,7 +64,13 @@ def scan_fingerprint_bits(
     n_angles: int = 72,
     scan_resolution: int = 50,
     threshold: float = 0.5,
+    unfolding_matrix: Optional[np.ndarray] = None,
 ) -> List[int]:
+    # IDRE v3: Topology Unfolding
+    if unfolding_matrix is not None:
+        u = np.dot(u, unfolding_matrix)
+        w = np.dot(w, unfolding_matrix)
+
     thetas = np.linspace(0.0, 2.0 * np.pi, n_angles, endpoint=False, dtype=np.float64)
     levels = np.linspace(0.02, 1.0, scan_resolution, dtype=np.float64)
 

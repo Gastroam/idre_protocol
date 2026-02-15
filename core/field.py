@@ -62,8 +62,19 @@ def scan_fingerprint_bits(
     n_angles: int = 72,
     scan_resolution: int = 50,
     threshold: float = 0.5,
+    unfolding_matrix: Optional[np.ndarray] = None,
 ) -> List[int]:
     """Field fingerprint scan for a given neuron (weights,bias) projected onto a locked plane."""
+    
+    # IDRE v3: Topology Unfolding
+    # If the weights are "Folded" (W_rest = W_true @ P_fold), 
+    # we must rotate the Probe Plane by P_unfold to see the signal.
+    # u' = u @ P_unfold
+    # w' = w @ P_unfold
+    if unfolding_matrix is not None:
+        u = np.dot(u, unfolding_matrix)
+        w = np.dot(w, unfolding_matrix)
+
     thetas = np.linspace(0.0, 2.0 * np.pi, int(n_angles), endpoint=False, dtype=np.float64)
     levels = np.linspace(0.02, 1.0, int(scan_resolution), dtype=np.float64)
 

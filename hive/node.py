@@ -43,6 +43,7 @@ from .physics import (
     scan_fingerprint_bits, compute_block_salt, derive_keystream_and_permutation, 
     permute, inverse_permute, xor_bytes
 )
+from .topology import TopologyManager
 from .session import HiveSession, PendingChallenge, NonceWindow
 from idre_clean.core.neural_codec import NeuralCodec, OP_ACK
 from .crypto import (
@@ -63,14 +64,21 @@ class _FrozenNeuron:
 class FrozenSubstrate:
     """Weights-only substrate for Option A (frozen)."""
 
-    def __init__(self, *, embedding_dim: int, seed_scales: Dict[int, float], bias: float = 0.0):
+    def __init__(self, *, embedding_dim: int, seed_scales: Dict[int, float], bias: float = 0.0, folding_matrix: Optional[np.ndarray] = None):
         self.embedding_dim = int(embedding_dim)
         self.bias = float(bias)
         self._neurons: Dict[int, _FrozenNeuron] = {}
         for seed, scale in seed_scales.items():
             s = int(seed)
             sc = float(scale)
+            # Generate Raw Vector
             w = seeded_unit_vector(s, self.embedding_dim) * sc
+            
+            # IDRE v3: Fold In-Memory
+            # W_fold = W_true @ P_fold
+            if folding_matrix is not None:
+                w = np.dot(w, folding_matrix)
+
             self._neurons[s] = _FrozenNeuron(weights=w.astype(np.float64), bias=self.bias)
 
     def has(self, seed: int) -> bool:
@@ -108,6 +116,11 @@ class FieldBoundNode:
         self.node_id = str(node_id)
         self.pepper = str(pepper)
         self.seed = int(seed)
+        
+        # IDRE v3: Initialize Topology Hiding (Unfolding Key)
+        _dim = int(getattr(MTIConfig(), "embedding_dim", 64))
+        self.topology = TopologyManager(seed=self.seed, dim=_dim)
+
         self.anchor_seeds = tuple(int(x) for x in anchor_seeds)
         self.anchor_weight = float(anchor_weight)
         self.n_angles = int(n_angles)
@@ -131,6 +144,11 @@ class FieldBoundNode:
         self.vocab = vocab
         self.vocab_registry = vocab_registry
         self.vocab_allow_literals = bool(vocab_allow_literals)
+        
+        # IDRE v3: Mandatory Vocab check based on user request
+        if self.vocab is None:
+             raise ValueError("IDRE v3 Compliance: 'vocab' argument is MANDATORY (Substrate Source).")
+
         if self.content_codec not in ("utf8", "vocab"):
             raise ValueError("bad_content_codec")
         if self.content_codec == "vocab" and (self.vocab is None or self.vocab_registry is None):
@@ -177,21 +195,20 @@ class FieldBoundNode:
             seed_scales: Dict[int, float] = {}
             for s in sorted(self._allowed_seeds):
                 seed_scales[int(s)] = float(self.anchor_weight)
-            self._frozen = FrozenSubstrate(embedding_dim=self.embedding_dim, seed_scales=seed_scales, bias=0.0)
+            # IDRE v3: Pass folding_matrix to secure the substrate in RAM
+            self._frozen = FrozenSubstrate(
+                embedding_dim=self.embedding_dim, 
+                seed_scales=seed_scales, 
+                bias=0.0,
+                folding_matrix=self.topology.folding_matrix
+            )
         else:
-            # Add parent dir to sys.path
-            import sys
-            root = Path(__file__).resolve().parent.parent.parent # idre_clean repo via relative path from hive/node.py? No, idre_clean/hive/node.py -> idre_clean is parent.
-            # No, idre_clean/hive/node.py -> ../.. is root.
-            # But the original code relied on _REPO_PARENT computed relative to script.
-            # We assume imports work now.
-            
             try:
                 from idre_clean.vendor.mti_evo.core.lattice import HolographicLattice
-            except Exception:
+            except ImportError:
                 try:
                     from vendor.mti_evo.core.lattice import HolographicLattice
-                except Exception:
+                except ImportError:
                     from mti_evo.core.lattice import HolographicLattice
 
             self.lattice = HolographicLattice(config=self.config)
@@ -289,10 +306,49 @@ class FieldBoundNode:
             n = self.lattice.active_tissue[s]
             weights = np.asarray(n.weights, dtype=np.float64).reshape(-1)
             bias = float(getattr(n, "bias", 0.0))
+            
+            # IDRE v3: Lattice Backend Compatibility
+            # The Lattice creates weights on-the-fly (Unfolded).
+            # To match the V3 Protocol (which expects Folded Weights + Unfolding Key),
+            # we must Fold them here so the Unfolding Key works.
+            # This simulates "Homomorphic" operation.
+            weights = self.topology.fold_substrate(weights)
 
         out: List[int] = []
+        # IDRE v3: Get Unfolding Key
+        unfolding_mtx = self.topology.unfolding_matrix
+        
         for i, (u, w) in enumerate(self._plane_list):
-            tau = self._tau_for_weights(weights, plane_idx=i)
+            tau = self._tau_for_weights(weights, plane_idx=i) # Note: _tau_for_weights likely needs Unfolding too?
+            # Actually _tau_for_weights uses .dot products.
+            # If weights are Folded, we need to Unfold u,w inside _tau_for_weights too?
+            # Yes. But _tau_for_weights definition (lines 231-238) isn't being modified here.
+            # We should probably modify _tau_for_weights or doing the math inline.
+            # Let's check _tau_for_weights content if possible.
+            # Assuming _tau_for_weights takes (weights, plane_idx) and uses self._plane_list[plane_idx].
+            # If so, it uses RAW planes.
+            # So dot(u, w_folded) = GARBAGE.
+            # We need to pass 'unfolding_matrix' to _tau_for_weights?
+            # Or just calculate Tau here manually?
+            # Let's calculate Tau here manually to be safe, overwriting the method call implies changing definition.
+            # Wait, the original code called self._tau_for_weights.
+            # Let's look at what I'm replacing:
+            # tau = self._tau_for_weights(weights, plane_idx=i)
+            
+            # FIX: We need to calculate Tau using UNSCRAMBLED amplitude.
+            # u_prime = u @ P_unfold
+            # w_prime = u @ P_unfold
+            # a = dot(u_prime, weights)
+            # b = dot(w_prime, weights)
+            
+            u_prime = np.dot(u, unfolding_mtx)
+            w_prime = np.dot(w, unfolding_mtx)
+            
+            a = float(np.dot(u_prime, weights))
+            b = float(np.dot(w_prime, weights))
+            amp = float(np.hypot(a, b))
+            tau = float(max(amp * self.tau_frac, 1e-9))
+            
             out.extend(
                 scan_fingerprint_bits(
                     weights=weights,
@@ -303,6 +359,7 @@ class FieldBoundNode:
                     n_angles=self.n_angles,
                     scan_resolution=self.scan_resolution,
                     threshold=self.threshold,
+                    unfolding_matrix=unfolding_mtx
                 )
             )
         return out
@@ -418,7 +475,7 @@ class FieldBoundNode:
         injected_packets: List[bytes] = [],
         ratchet_key: Optional[int] = None,
     ) -> Tuple[List[int], bytes]:
-        if self.vocab:
+        if self.config and getattr(self, "content_codec", "utf8") == "vocab" and self.vocab:
             # User optimization: Use Tokenizer (Vocab) instead of raw UTF-8
             blob = vocab_encode_text(
                 message, 
@@ -483,12 +540,9 @@ class FieldBoundNode:
             nonce=nonce,
             ephemeral_salt=ephemeral_salt
         )
-        # print(f"DEBUG ENC: RK={ratchet_key} BitsLen={len(bits)} MACKey={key.hex()}")
-        
         # State Evolution
-        # Only evolve for Root Seed (Field-Bound). Ratchet keys are ephemeral.
-        if ratchet_key is None:
-             self._evolve_lattice(self.seed)
+        # Always evolve to maintain Substrate Plasticity (Anti-Replay)
+        self._evolve_lattice(self.seed)
         
         # Tag
         tag = hmac.new(key, (aad or b"") + bytes(int(x) & 0xFF for x in ct_ints), hashlib.sha256).digest()
@@ -566,17 +620,16 @@ class FieldBoundNode:
             nonce=nonce, 
             ephemeral_salt=ephemeral_salt
         )
-        # print(f"DEBUG DEC: RK={ratchet_key} BitsLen={len(bits)} MACKey={key.hex()}")
         
         exp = hmac.new(key, (aad or b"") + bytes(int(x) & 0xFF for x in ct), hashlib.sha256).digest()
+        
         if not hmac.compare_digest(exp, tag_from_frame):
              # DO NOT EVOLVE ON MAC FAILURE
              return None, "mac_mismatch", [], tag_from_frame
              
         # MAC Verified: Now Commit Evolved State
-        # MAC Verified: Now Commit Evolved State (Only for Root Seed)
-        if ratchet_key is None:
-             self._evolve_lattice(self.seed)
+        # Always evolve to maintain Substrate Plasticity
+        self._evolve_lattice(self.seed)
         
         # Decrypt Stream
         pt, reason, acks = _decrypt_stream(
@@ -683,8 +736,7 @@ class FieldBoundNode:
             start_time=time.time(),
             ttl_s=float(msg.get("ttl_s", ttl_s)),
             ephemeral_salt=e_salt,
-            out_chain=genesis_key,
-            in_chain=genesis_key,
+            chain_hash=genesis_key,
             out_seq=1,
             in_seq=1,
             codec=codec,
@@ -981,7 +1033,7 @@ class FieldBoundNode:
         
         for offset in range(window_size + 1):
             candidate_seq = base_seq + offset
-            aad_check = aad + str(sess.last_ratchet_hash).encode() + struct.pack(">Q", candidate_seq)
+            aad_check = aad + sess.chain_hash + struct.pack(">Q", candidate_seq)
             
             blob_opt, reason_opt, acks_opt, tag_opt = self.decrypt_bytes(
                 payload, session_id=sess.session_id, nonce=nonce, ephemeral_salt=sess.ephemeral_salt, 
@@ -1014,8 +1066,12 @@ class FieldBoundNode:
             try:
                 ok, text = unpack_plaintext(bytes(blob_found))
                 if not ok:
+                     if self.print_events:
+                         print(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error")
                      return {"status": "reject", "reason": "unpack_error"}
             except:
+                 if self.print_events:
+                     print(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error_ex")
                  return {"status": "reject", "reason": "unpack_error_ex"}
                  
         else: # Vocab Path

@@ -13,21 +13,32 @@ sys.path.insert(0, os.path.dirname(root_dir))
 
 from hive.node import FieldBoundNode
 from core.neural_codec import OP_LITERAL, OP_PROPOSE, OP_RECALL, OP_ACK
+from core.vocab_codec import Vocab
+
+def _create_dummy_vocab():
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
 
 class TestNeuralIntegration(unittest.TestCase):
     def setUp(self):
         # Setup two nodes
         self.seed_a = 12345
         self.seed_b = 12345 # Must share seed for symmetric crypto & codec key
+        
+        vocab = _create_dummy_vocab()
+        
         self.node_a = FieldBoundNode(
             node_id="A", seed=self.seed_a, anchor_seeds=(self.seed_a,), anchor_weight=1.0, 
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
-            print_deliveries=True, print_events=True, freeze_field=True, backend="frozen"
+            print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
+            vocab=vocab
         )
         self.node_b = FieldBoundNode(
             node_id="B", seed=self.seed_b, anchor_seeds=(self.seed_b,), anchor_weight=1.0,
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
-            print_deliveries=True, print_events=True, freeze_field=True, backend="frozen"
+            print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
+            vocab=vocab
         )
         
         # Force Session

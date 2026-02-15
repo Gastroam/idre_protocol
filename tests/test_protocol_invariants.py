@@ -13,20 +13,31 @@ sys.path.insert(0, os.path.dirname(root_dir))
 
 from hive.node import FieldBoundNode
 from hive.crypto import derive_mac_key
+from core.vocab_codec import Vocab
+
+def _create_dummy_vocab():
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
 
 class TestProtocolInvariants(unittest.TestCase):
     def setUp(self):
+        print("\nDEBUG: Test Setup Starts", flush=True)
         # Setup two nodes with same seed
         self.seed = 12345
+        vocab = _create_dummy_vocab()
+        
         self.node_a = FieldBoundNode(
             node_id="A", seed=self.seed, anchor_seeds=(self.seed,), anchor_weight=1.0, 
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
-            print_deliveries=False, print_events=False, freeze_field=True, backend="frozen"
+            print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
+            vocab=vocab
         )
         self.node_b = FieldBoundNode(
             node_id="B", seed=self.seed, anchor_seeds=(self.seed,), anchor_weight=1.0,
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
-            print_deliveries=False, print_events=False, freeze_field=True, backend="frozen"
+            print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
+            vocab=vocab
         )
         # Force Session
         self.session_id = "test-inv-1"

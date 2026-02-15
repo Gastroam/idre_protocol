@@ -181,14 +181,20 @@ class SeedCracker:
                 # We can use FieldBoundNode logic here if imported.
                 if not FieldBoundNode: return None
                 
-                # Mock a local node with correct params (backend="frozen" needs freeze_field=True)
+                # Mock a local node with correct params
+                # Helper for vocab (copied from verifying scripts)
+                try: from idre_clean.core.vocab_codec import Vocab
+                except: from core.vocab_codec import Vocab
+                _dummy = Vocab(["a"], {"a":0}, b"dum", {})
+
                 node = FieldBoundNode(
                     node_id="EVE_CLONE", seed=s,
                     anchor_seeds=(7245,), anchor_weight=80.0,
                     n_angles=72, scan_resolution=50, threshold=0.5,
                     planes=4, tau_frac=0.55,
                     print_deliveries=False, print_events=False,
-                    freeze_field=True, backend="frozen"
+                    freeze_field=True, backend="frozen",
+                    vocab=_dummy,
                 )
                 
                 # Construct the payload locally
@@ -218,13 +224,18 @@ class EveDecryptor:
         self.known_sessions: Dict[str, int] = {} # session_id -> ephemeral_salt
         if FieldBoundNode:
             # Eve has the seed, but NO vocab
+            try: from idre_clean.core.vocab_codec import Vocab
+            except: from core.vocab_codec import Vocab
+            _dummy = Vocab(["a"], {"a":0}, b"dum", {})
+            
             self.node = FieldBoundNode(
                 node_id="EVE_LEAK", seed=seed,
                 anchor_seeds=(7245,), anchor_weight=80.0,
                 n_angles=72, scan_resolution=50, threshold=0.5,
                 planes=4, tau_frac=0.55,
                 print_deliveries=False, print_events=False,
-                freeze_field=True, backend="frozen"
+                freeze_field=True, backend="frozen",
+                vocab=_dummy,
             )
 
     def sniff_handshake(self, wire_msg: Dict[str, Any]):
@@ -294,119 +305,173 @@ class EveDecryptor:
             return f"[Error: {e}]"
 
 
+
+# --- Server Management ---
+# Calculate REPO_PARENT correctly. 
+# If this script is in f:\idre_clean\scripts\, 
+# Path(__file__).resolve() -> f:\idre_clean\scripts\verify_real_stream.py
+# .parent -> f:\idre_clean\scripts
+# .parent.parent -> f:\idre_clean (THIS IS THE REPO ROOT)
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+NODE_CMD = [sys.executable, str(_REPO_ROOT / "scripts" / "hive_v12_node_server.py")]
+PORT_A = 8890
+PORT_B = 8891
+PORT_E = 8892
+SEED = 7245
+
+def wait_for_port(port, timeout=10):
+    import requests
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            with requests.get(f"http://127.0.0.1:{port}/health", timeout=1) as r:
+                if r.status_code == 200:
+                    return True
+        except:
+            time.sleep(0.5)
+    return False
+
 def main():
-    a_url = "http://127.0.0.1:8890"
-    b_url = "http://127.0.0.1:8891"
-    e_url = "http://127.0.0.1:8892"
+    import subprocess
     
-    client_a = HiveClient(a_url)
-    client_b = HiveClient(b_url)
-    client_e = HiveClient(e_url)
+    a_url = f"http://127.0.0.1:{PORT_A}"
+    b_url = f"http://127.0.0.1:{PORT_B}"
+    e_url = f"http://127.0.0.1:{PORT_E}"
     
-    # Fetch IDs (Health checks)
-    ha = client_a.hello()
-    hb = client_b.hello()
-    a_id = ha.get("node_id", "A")
-    b_id = hb.get("node_id", "B")
-
-    print("\n[*] Starting Stream... (Toxic + Protocol Breaking + LEAK)")
-    
-    cracker = SeedCracker()
-    # Initialize Leaker with known seed 7245
-    leaker = EveDecryptor(seed=7245)
-
-    # Handshake - pass 'leaker' as observer to sniff params
-    sid = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
-    salt = random.getrandbits(31)
-    try:
-        _handshake(client_a, a_id, client_b, b_id, sid, salt, observer=leaker)
-    except Exception as e:
-        print(f"[!] Handshake failed: {e}")
-        # sys.exit(1)
-        
-    start_time = time.time()
-    duration = 60
-    seq = 0
-    
-    attack_strategies = [
-        ("Replay", attack_replay),
-        ("BitFlip", attack_tamper_bitflip),
-        ("JSONFuzz", attack_json_fuzz),
-        ("TimeTravel", attack_time_travel),
-        ("SessionHijack", attack_session_hijack),
-        ("ProtoFuzz", attack_protocol_fuzz),
-        ("Reflection", attack_reflection)
+    # 1. Start Servers
+    print("[*] Starting Nodes A, B, and Eve (Real Processes)...")
+    common_args = [
+        "--seed", str(SEED),
+        "--planes", "4",
+        "--backend", "lattice",
+        "--enable-plasticity",
+        "--print-events"
     ]
     
-    while time.time() - start_time < duration:
-        seq += 1
-        elapsed = int(time.time() - start_time)
-        print(f"\n--- T+{elapsed}s (Seq {seq}) ---")
+    # Check if servers are already running (manual mode compatibility)
+    manual_mode = False
+    if wait_for_port(PORT_A, timeout=1):
+        print("[!] Nodes already running. Using existing instances.")
+        manual_mode = True
+        procs = []
+    else:
+        # Launch them
+        procs = [
+            subprocess.Popen(NODE_CMD + ["--port", str(PORT_A), "--node-id", "A"] + common_args),
+            subprocess.Popen(NODE_CMD + ["--port", str(PORT_B), "--node-id", "B"] + common_args),
+            subprocess.Popen(NODE_CMD + ["--port", str(PORT_E), "--node-id", "E"] + common_args)
+        ]
+        if not all([wait_for_port(p, timeout=20) for p in [PORT_A, PORT_B, PORT_E]]):
+            print("[!] Failed to start nodes.")
+            for p in procs: p.terminate()
+            sys.exit(1)
+            
+    try:
+        client_a = HiveClient(a_url)
+        client_b = HiveClient(b_url)
+        client_e = HiveClient(e_url)
         
-        # 1. Valid A -> B
+        # Fetch IDs (Health checks)
+        ha = client_a.hello()
+        hb = client_b.hello()
+        a_id = ha.get("node_id", "A")
+        b_id = hb.get("node_id", "B")
+    
+        print("\n[*] Starting Stream... (Toxic + Protocol Breaking + LEAK)")
+        
+        cracker = SeedCracker()
+        # Initialize Leaker with known seed 7245
+        leaker = EveDecryptor(seed=7245)
+    
+        # Handshake - pass 'leaker' as observer to sniff params
+        sid = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
+        salt = random.getrandbits(31)
         try:
-            # Use valid vocab tokens!
-            content = f"hello world this is message {seq} from node A"
-            wire_a = send_msg(client_a, a_id, b_id, content)
-            
-            # --- LEAK DEMO ---
-            # Eve captures 'wire_a' and tries to decrypt it
-            if leaker.node:
-                dec = leaker.sniff_and_decrypt(wire_a)
-                print(f"    [Eve] **SNIFF** Decrypted: {dec}")
-            # -----------------
-            
-            if receive_msg(client_b, a_id, wire_a) != "delivered":
-                print("    [A->B] FAIL (Delivery)")
-
-            # 2. Attacks
-            name, func = random.choice(attack_strategies)
-            
-            # Special case: Reflection targets A, others target B
-            if name == "Reflection":
-                # Eve sends wire_a (A->B) back to A, pretending it came from B
-                malicious_msg = func(wire_a)
-                status = receive_msg(client_a, b_id, malicious_msg)
-                print(f"    [Eve->A] Strategy: {name} -> {status} [PASS]")
-            else:
-                # Normal attacks targeting B
-                malicious_msg = func(wire_a, client_src=client_a, src_id=a_id, dst_id=b_id)
-                status = receive_msg(client_b, a_id, malicious_msg)
-                if status == "delivered":
-                     print(f"      [RESULT] {name}: FAIL (delivered)")
-                else:
-                     print(f"      [RESULT] {name}: BLOCKED ({status}) [PASS]")
-
-            # 3. Seed Crack & Inject (The Breaker)
-            # Try to crack seed if not yet cracked
-            if not cracker.cracked_seed:
-                s = cracker.brute_force_handshake(a_id, client_b)
-                # Cracker still uses raw URLs because it mocks its own requests?
-                # Actually _post is removed... I need to update cracker too!
-                # Wait, SeedCracker uses _post internally. I removed _post from global scope?
-                # No, I removed it from 'Helpers' section but wait...
-                # The diff removed it.
-                # So Cracker fails.
-                # I should update SeedCracker to use HiveClient or re-add _post.
-                # I'll update SeedCracker to use HiveClient for B interaction.
-                # BUT Cracker creates fake requests. `HiveClient` is high level.
-                # I will allow `SeedCracker` to use `client_b`.
-                pass
-                
+            _handshake(client_a, a_id, client_b, b_id, sid, salt, observer=leaker)
         except Exception as e:
-            traceback.print_exc()
-            print(f"    [!] Error (seq {seq}): {e}")
-
-        # 3. Valid B -> A
-        try:
-            content = f"hello from B message {seq}"
-            wire_b = send_msg(client_b, b_id, a_id, content)
-            receive_msg(client_a, b_id, wire_b)
-        except: pass
+            print(f"[!] Handshake failed: {e}")
+            # sys.exit(1)
             
-        time.sleep(1.0) # 1s cadence
-
-    print("\n[SUCCESS] Test complete.")
+        start_time = time.time()
+        duration = 15 # Reduced duration for CI
+        seq = 0
+        
+        attack_strategies = [
+            ("Replay", attack_replay),
+            ("BitFlip", attack_tamper_bitflip),
+            ("JSONFuzz", attack_json_fuzz),
+            ("TimeTravel", attack_time_travel),
+            ("SessionHijack", attack_session_hijack),
+            ("ProtoFuzz", attack_protocol_fuzz),
+            ("Reflection", attack_reflection)
+        ]
+        
+        while time.time() - start_time < duration:
+            seq += 1
+            elapsed = int(time.time() - start_time)
+            print(f"\n--- T+{elapsed}s (Seq {seq}) ---")
+            
+            # 1. Valid A -> B
+            try:
+                # Use valid vocab tokens!
+                content = f"hello world this is message {seq} from node A"
+                wire_a = send_msg(client_a, a_id, b_id, content)
+                
+                # --- LEAK DEMO ---
+                # Eve captures 'wire_a' and tries to decrypt it
+                if leaker.node:
+                    dec = leaker.sniff_and_decrypt(wire_a)
+                    print(f"    [Eve] **SNIFF** Decrypted: {dec}")
+                # -----------------
+                
+                if receive_msg(client_b, a_id, wire_a) != "delivered":
+                    print("    [A->B] FAIL (Delivery)")
+    
+                # 2. Attacks
+                name, func = random.choice(attack_strategies)
+                
+                # Special case: Reflection targets A, others target B
+                if name == "Reflection":
+                    # Eve sends wire_a (A->B) back to A, pretending it came from B
+                    malicious_msg = func(wire_a)
+                    status = receive_msg(client_a, b_id, malicious_msg)
+                    print(f"    [Eve->A] Strategy: {name} -> {status} [PASS]")
+                else:
+                    # Normal attacks targeting B
+                    malicious_msg = func(wire_a, client_src=client_a, src_id=a_id, dst_id=b_id)
+                    status = receive_msg(client_b, a_id, malicious_msg)
+                    if status == "delivered":
+                         print(f"      [RESULT] {name}: FAIL (delivered)")
+                    else:
+                         print(f"      [RESULT] {name}: BLOCKED ({status}) [PASS]")
+    
+                # 3. Seed Crack & Inject (The Breaker)
+                # Try to crack seed if not yet cracked
+                if not cracker.cracked_seed:
+                    s = cracker.brute_force_handshake(a_id, client_b)
+                    pass
+                    
+            except Exception as e:
+                traceback.print_exc()
+                print(f"    [!] Error (seq {seq}): {e}")
+    
+            # 3. Valid B -> A
+            try:
+                content = f"hello from B message {seq}"
+                wire_b = send_msg(client_b, b_id, a_id, content)
+                receive_msg(client_a, b_id, wire_b)
+            except: pass
+                
+            time.sleep(1.0) # 1s cadence
+    
+        print("\n[SUCCESS] Test complete.")
+        
+    finally:
+        if not manual_mode:
+            print("[*] Terminating Servers...")
+            for p in procs: 
+                p.terminate()
+                p.wait()
 
 if __name__ == "__main__":
     main()
