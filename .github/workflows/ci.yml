@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pytest ruff
+
+      - name: Lint (ruff)
+        run: |
+          python -m ruff check core attacks tests transports/idre_silence.py transports/wav_io.py scripts/hive_v12_node_server.py scripts/idre_offline_gateway.py
+
+      - name: Compile (syntax)
+        run: |
+          python -m compileall -q .
+
+      - name: Unit Tests (pytest)
+        run: |
+          python -m pytest
+
+      - name: Integration: Restart/Reconnect Suite
+        run: |
+          python attacks/idre_restart_reconnect_suite.py
+
+      - name: Integration: Rate Limit Suite
+        run: |
+          python attacks/idre_rate_limit_suite.py

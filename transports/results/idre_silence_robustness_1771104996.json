@@ -1,0 +1,359 @@
+{
+  "ts": "2026-02-14 17:36:03",
+  "sr": 44100,
+  "seed": 1337,
+  "message": "OFFLINE_IDRE_TEST_VECTOR_0001",
+  "message_len": 29,
+  "fec_repeat": 3,
+  "base": {
+    "samples": 1157004,
+    "dominant_freq_hz_first_1s": 102.0,
+    "gaps": {
+      "0": 431,
+      "1": 467,
+      "null": 449
+    }
+  },
+  "cases": [
+    {
+      "name": "clean_float32",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 110.96908950383772,
+        "mean": 110.96908950383772
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "wav_int16_roundtrip",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 110.96908950383772,
+        "mean": 110.96908950383772
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "noise_sigma_0.001",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 50.96361751007674,
+        "mean": 50.9699891630485
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "noise_sigma_0.003",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 41.423158868491434,
+        "mean": 41.423569740313425
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "noise_sigma_0.01",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 30.966162067471323,
+        "mean": 30.969871224750737
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "noise_sigma_0.03",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 21.425021016512098,
+        "mean": 21.430012599927682
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "noise_sigma_0.1",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 10.966945593224807,
+        "mean": 10.967416230596317
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "resample_44100_to_48000_to_44100",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 41.796460310899164,
+        "mean": 41.796460310899164
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "resample_44100_to_32000_to_44100",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 41.796448645350075,
+        "mean": 41.796448645350075
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "gain_x2_clip_0p6",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 5.925377878737393,
+        "mean": 5.925377878737393
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "gain_x0p2",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 1.938200260951125,
+        "mean": 1.938200260951125
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "dc_offset_0p2",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 4.948489660209439,
+        "mean": 4.948489660209439
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 0.0,
+        "mean": 0.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "lowpass_150hz",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 45.29545427735496,
+        "mean": 45.29545427735496
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "highpass_80hz",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 32.74984657051502,
+        "mean": 32.74984657051502
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "prepend_0p25s_silence",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": -3.1176804037292656,
+        "mean": -3.1176804037292656
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 99.0,
+        "mean": 99.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "dropout_1pct",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 19.919885320101617,
+        "mean": 19.950408831085916
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    },
+    {
+      "name": "jitter_0p5pct",
+      "trials": 2,
+      "successes": 2,
+      "success_rate": 1.0,
+      "decoded_len_stats": {
+        "min": 29,
+        "max": 29,
+        "mean": 29.0
+      },
+      "snr_db": {
+        "min": 2.991501417166374,
+        "mean": 5.96473086824861
+      },
+      "dominant_freq_hz_first_1s": {
+        "min": 102.0,
+        "mean": 102.0
+      },
+      "example_decoded": "OFFLINE_IDRE_TEST_VECTOR_0001"
+    }
+  ]
+}

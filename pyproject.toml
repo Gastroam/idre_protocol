@@ -1,0 +1,20 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+  "vendor",
+  "logs",
+  "__pycache__",
+]
+
+[tool.ruff.lint]
+select = ["E9", "F"]
+ignore = [
+  "E501",  # line length handled by formatter policy; keep CI noise low
+  "E402",  # scripts may intentionally tweak sys.path before importing package modules
+]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
