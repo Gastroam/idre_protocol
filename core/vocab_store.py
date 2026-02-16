@@ -3,7 +3,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 
 MAGIC8 = b"IDRVOCB1"
@@ -104,4 +104,3 @@ def read_vocab_bin(path: str) -> VocabBin:
         except Exception as exc:
             raise ValueError("bad_utf8") from exc
     return VocabBin(tokens=toks, vocab_id=bytes(vocab_id))
-

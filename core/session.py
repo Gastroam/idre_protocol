@@ -3,7 +3,9 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Set
+from typing import Deque, List, Optional, Set
+
+from .neural_codec import NeuralCodec
 
 
 class NonceWindow:
@@ -25,6 +27,15 @@ class NonceWindow:
             self._set.discard(old)
         return True
 
+    def contains(self, nonce: int) -> bool:
+        return int(nonce) in self._set
+
+    def __contains__(self, nonce: object) -> bool:
+        try:
+            return self.contains(int(nonce))  # type: ignore[arg-type]
+        except Exception:
+            return False
+
 
 @dataclass
 class HiveSession:
@@ -34,6 +45,30 @@ class HiveSession:
     ttl_s: float = 600.0
     ephemeral_salt: int = 0
     seen: NonceWindow = field(default_factory=NonceWindow)
+    chain_hash: bytes = b""  # Epoch Anchor: rolling hash of legitimate history
+    prev_chain_hash: bytes = b""  # rollback support
+    out_seq: int = 0
+    in_seq: int = 0
+    codec: Optional[NeuralCodec] = None
+    ratchet_key: Optional[int] = None  # Ouroboros: current ratchet key
+    last_ratchet_hash: str = ""
+    pending_acks: List[bytes] = field(default_factory=list)
 
     def is_valid(self) -> bool:
         return (time.time() - float(self.start_time)) < float(self.ttl_s)
+
+    def clone(self) -> "HiveSession":
+        import copy
+        # Deep copy is essential for mutable structures like codec state, nonces, pending_acks
+        return copy.deepcopy(self)
+
+
+@dataclass
+class PendingChallenge:
+    challenge: str
+    issued_at_ms: int
+    expires_at_ms: int
+    used: bool = False
+
+
+__all__ = ["NonceWindow", "HiveSession", "PendingChallenge"]

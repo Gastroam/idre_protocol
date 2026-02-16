@@ -263,7 +263,7 @@ def main() -> int:
 
         # Wait for B delivery print.
         deadline = time.time() + 8.0
-        needle = f"[DELIVERED to B"
+        needle = "[DELIVERED to B"
         while time.time() < deadline:
             for ln in lines_b[-50:]:
                 if needle in ln and msg in ln:

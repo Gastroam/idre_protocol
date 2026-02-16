@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from idre_clean.core.vocab_codec import Vocab, decode_text, encode_text, load_vocab
+from idre_clean.core.vocab_codec import decode_text, encode_text, load_vocab
 
 
 def test_vocab_codec_roundtrip_exact(tmp_path) -> None:

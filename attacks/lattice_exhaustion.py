@@ -54,7 +54,7 @@ def _send_garbage(target_url: str, session_id: str, peer_id: str, count: int):
                 headers={"Content-Type": "application/json"},
                 method="POST"
             )
-            with urllib.request.urlopen(req, timeout=0.1) as r:
+            with urllib.request.urlopen(req, timeout=0.1) as _r:
                  # Success 200 means it was processed (and probably rejected application-level, but accessed)
                  pass
         except urllib.error.HTTPError as e:
@@ -71,7 +71,7 @@ def _send_garbage(target_url: str, session_id: str, peer_id: str, count: int):
     print("\n    [Done]")
 
 def check_sync_and_get_session(url_a: str, url_b: str, node_b_id: str) -> tuple[bool, str]:
-    print(f"[*] Checking Sync A->B...")
+    print("[*] Checking Sync A->B...")
     content = f"SyncCheck_{int(time.time())}"
     resp = _post(f"{url_a}/hive/v12/send", {"dst_node_id": node_b_id, "content": content})
     msg = resp.get("msg")
@@ -92,7 +92,7 @@ def perform_handshake(url_a: str, id_a: str, url_b: str, id_b: str) -> str:
     session_id = "ATTACK_SESS_" + hashlib.sha256(os.urandom(32)).hexdigest()[:16]
     ephemeral_salt = random.randint(0, 999999)
     
-    print(f"    [A->B] Challenge...")
+    print("    [A->B] Challenge...")
     resp_c = _post(f"{url_b}/hive/v12/challenge", {"peer_id": id_a})
     chal = resp_c.get("challenge")
     if not chal:
@@ -114,7 +114,7 @@ def perform_handshake(url_a: str, id_a: str, url_b: str, id_b: str) -> str:
         print(f"    [!] B rejected A: {resp_v1}")
         return ""
         
-    print(f"    [B->A] Challenge...")
+    print("    [B->A] Challenge...")
     resp_c2 = _post(f"{url_a}/hive/v12/challenge", {"peer_id": id_b})
     chal2 = resp_c2.get("challenge")
     if not chal2:
@@ -162,11 +162,11 @@ def main():
             print("[!] ERROR: Nodes are NOT synced initially (even after handshake).")
             sys.exit(1)
             
-        print(f"\n[!!!] LAUNCHING LATTICE EXHAUSTION ATTACK AGAINST NODE A [!!!]")
+        print("\n[!!!] LAUNCHING LATTICE EXHAUSTION ATTACK AGAINST NODE A [!!!]")
         print(f"      Targeting Session: {session_id} (Spoofing {args.id_b})")
         _send_garbage(args.url_a, session_id, args.id_b, args.packets)
         
-        print(f"\n[*] Checking Sync Post-Attack...")
+        print("\n[*] Checking Sync Post-Attack...")
         is_synced_post, _ = check_sync_and_get_session(args.url_a, args.url_b, args.id_b)
         
         if not is_synced_post:

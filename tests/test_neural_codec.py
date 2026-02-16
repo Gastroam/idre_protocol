@@ -14,14 +14,14 @@ try:
     from core.neural_codec import (
         NeuralCodec, 
         OP_LITERAL, OP_PROPOSE, OP_RECALL, OP_ACK,
-        MAX_ENTRIES, MIN_OBSERVATIONS
+        MIN_OBSERVATIONS
     )
 except ImportError:
     # Or as 'idre_clean.core.neural_codec' if installed/structured as package
     from idre_clean.core.neural_codec import (
         NeuralCodec, 
         OP_LITERAL, OP_PROPOSE, OP_RECALL, OP_ACK,
-        MAX_ENTRIES, MIN_OBSERVATIONS
+        MIN_OBSERVATIONS
     )
 
 class TestNeuralCodec(unittest.TestCase):

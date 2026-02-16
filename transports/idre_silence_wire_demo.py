@@ -26,11 +26,9 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Tuple
 
-import numpy as np
 
 # Allow running as a script without installing the package.
 _REPO_ROOT = Path(__file__).resolve().parents[2]

@@ -37,15 +37,13 @@ def fold_vector(v: np.ndarray, P_fold: np.ndarray) -> np.ndarray:
 
 def unfold_basis(u: np.ndarray, w: np.ndarray, P_fold: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Derive Unfolded Basis for Probing:
-    u_prime = u @ P_unfold
-    w_prime = w @ P_unfold
-    
-    Where P_unfold = inv(P_fold) = P_fold.T (since Orthogonal)
+    Map basis vectors into the folded coordinate system for probing folded weights.
+
+    Folding convention in this repo is row-vectors: `v_fold = v_true @ P_fold`.
+    So probe basis vectors must be transformed the same way.
     """
-    # Inverse of Orthogonal Matrix is Transpose
-    P_unfold = P_fold.T 
-    
+    u_prime = np.dot(u, P_fold)
+    w_prime = np.dot(w, P_fold)
     return u_prime, w_prime
 
 class TopologyManager:

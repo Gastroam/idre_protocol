@@ -9,10 +9,14 @@ in both directions (A->B and B->A).
 
 import sys
 import os
-import time
-import logging
 import random
-from typing import Dict, Any, List
+from typing import List
+
+# Avoid Windows cp1252 console crashes if any Unicode slips into logs.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="backslashreplace")
 
 # Ensure we can import from the repo root
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -26,13 +30,9 @@ if _PARENT_DIR not in sys.path:
 
 try:
     from idre_clean.hive.node import FieldBoundNode
-    from idre_clean.hive.cli import parse_int_tuple
-    from idre_clean.hive.utils import canonical_json
 except ImportError:
     # If package is not installed, we rely on sys.path insert above
     from hive.node import FieldBoundNode
-    from hive.cli import parse_int_tuple
-    from hive.utils import canonical_json
 
 
 class TestNode(FieldBoundNode):
@@ -60,13 +60,13 @@ class TestNode(FieldBoundNode):
         
         # If successful, capture the content
         if blob is not None:
-             # Unpack plaintext
-             from idre_clean.hive.utils import unpack_plaintext
-             # blob is list[int], convert to bytes
+             try:
+                 from idre_clean.hive.utils import unpack_plaintext
+             except Exception:
+                 from hive.utils import unpack_plaintext
              ok_unpack, text = unpack_plaintext(bytes(blob))
              if ok_unpack:
                  self.received_messages.append(text)
-                 # print(f"[{self.node_id}] CAPTURED: {text[:60]}...")
                  
         return blob, reason, acks, tag
 
@@ -115,7 +115,6 @@ def perform_handshake(node_a: TestNode, node_b: TestNode):
     # A creates verify request
     print(f"[{node_a.node_id}] Creating verify req...")
     # Emulate client-side generation of session_id and ephemeral_salt
-    rng = random.Random(node_a.seed) # deterministic for test
     session_id_ab = f"sess_{node_a.node_id}{node_b.node_id}_{random.randint(1000,9999)}"
     esalt_ab = random.getrandbits(31)
     

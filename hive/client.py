@@ -2,7 +2,6 @@
 import json
 import urllib.request
 import urllib.error
-import time
 from typing import Dict, Any, Tuple, Optional
 
 def _post(url: str, payload: Dict[str, Any], timeout: int = 10) -> Tuple[int, Dict[str, Any]]:

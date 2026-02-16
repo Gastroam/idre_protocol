@@ -39,24 +39,18 @@ if parent_dir not in sys.path:
 
 try:
     # Try fully qualified first (standard)
-    from idre_clean.hive.physics import derive_locked_planes, scan_fingerprint_bits
+    from idre_clean.core.physics_v12 import derive_locked_planes, scan_fingerprint_bits
     from idre_clean.hive.node import FieldBoundNode
 except ImportError:
     try:
-        # Try local/relative if package not installed
-        import idre_clean
-        from idre_clean.hive.physics import derive_locked_planes, scan_fingerprint_bits
-        from idre_clean.hive.node import FieldBoundNode
+        # Fallback for script-style execution from repo root
+        from core.physics_v12 import derive_locked_planes, scan_fingerprint_bits
+        from hive.node import FieldBoundNode
     except ImportError as e:
         print(f"[!] Import Error: {e}")
         print(f"    sys.path: {sys.path}")
-        try:
-             # Fallback
-             from hive.physics import derive_locked_planes, scan_fingerprint_bits
-             from hive.node import FieldBoundNode
-        except ImportError:
-             print("[!] FATAL: Could not import core modules.")
-             sys.exit(1)
+        print("[!] FATAL: Could not import core modules.")
+        sys.exit(1)
 
 def sigmoid(x):
     return 1 / (1 + np.exp(-x))
@@ -69,7 +63,6 @@ class GradientCracker:
         self.plane_list = []
 
     def load_planes(self):
-        from idre_clean.hive.physics import derive_locked_planes
         self.plane_list = derive_locked_planes(self.dims, self.n_planes)
         print(f"[*] Loaded {len(self.plane_list)} Public Projection Planes")
 
@@ -120,9 +113,6 @@ class GradientCracker:
         
         sigma = 0.1 # Mutation strength
         
-        # Stats
-        last_print = 0
-        
         for step in range(max_steps):
             # Mutate
             noise = np.random.randn(self.dims) * sigma
@@ -169,8 +159,6 @@ def main():
     # We create a temporary node to generate true bits
     # We match the config: planes=4, n_angles=72, backend=lattice?
     
-    # Let's use `FieldBoundNode` to generate bits.
-    from idre_clean.hive.node import FieldBoundNode
     victim = FieldBoundNode(
         node_id="VICTIM", seed=args.seed, anchor_seeds=(args.seed,), anchor_weight=80.0,
         n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,

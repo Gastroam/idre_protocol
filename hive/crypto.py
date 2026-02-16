@@ -1,11 +1,24 @@
+import hmac
 import struct
 import hashlib
-from typing import List, Optional, Tuple, Dict
-from idre_clean.core.neural_codec import NeuralCodec, OP_ACK
-from .physics import (
-    compute_block_salt, derive_keystream_and_permutation, 
-    permute, inverse_permute, xor_bytes
-)
+from typing import List, Optional, Tuple
+from idre_clean.core.neural_codec import NeuralCodec
+try:
+    from idre_clean.core.physics_v12 import (
+        compute_block_salt,
+        derive_keystream_and_permutation,
+        inverse_permute,
+        permute,
+        xor_bytes,
+    )
+except Exception:
+    from core.physics_v12 import (
+        compute_block_salt,
+        derive_keystream_and_permutation,
+        inverse_permute,
+        permute,
+        xor_bytes,
+    )
 
 def _sha256(data: bytes) -> bytes:
     return hashlib.sha256(data).digest()
@@ -76,8 +89,8 @@ def encrypt_stream(
     pad_bytes: int = 0,
     max_bytes: int = 65535,
     codec: Optional[NeuralCodec] = None,
-    injected_packets: List[bytes] = [],
-) -> Tuple[List[int], List[int]]: # returns (encrypted_payload, unused?)
+    injected_packets: Optional[List[bytes]] = None,
+) -> List[int]:
     """
     High-level encryption pipeline:
     1. Neural Compress (Optional)
@@ -87,7 +100,7 @@ def encrypt_stream(
     """
     # 1. Compress / Inject
     if codec:
-        data = codec.encode(data, injected_packets=injected_packets)
+        data = codec.encode(data, injected_packets=list(injected_packets or []))
         
     if len(data) > max_bytes:
         raise ValueError("plaintext_too_large")
@@ -115,8 +128,7 @@ def encrypt_stream(
     # Best to match behavior for now to avoid breaking wire format.
     
     pt = [b for b in blob]
-    ct = crypt_with_bits(framed=pt, bits=bits, session_id=session_id, nonce=nonce, ephemeral_salt=ephemeral_salt, encrypt=True)
-    return ct
+    return crypt_with_bits(framed=pt, bits=bits, session_id=session_id, nonce=nonce, ephemeral_salt=ephemeral_salt, encrypt=True)
 
 def decrypt_stream(
     payload: List[int],
@@ -173,7 +185,7 @@ def seal_stream(
     aad: bytes = b"",
     max_bytes: int = 65535,
     codec: Optional[NeuralCodec] = None,
-    injected_packets: List[bytes] = [],
+    injected_packets: Optional[List[bytes]] = None,
 ) -> List[int]:
     """
     Full Encrypt + Envelope:
@@ -189,7 +201,7 @@ def seal_stream(
         pad_bytes=pad_bytes,
         max_bytes=max_bytes,
         codec=codec,
-        injected_packets=injected_packets
+        injected_packets=list(injected_packets or []),
     )
     
     # 2. Derive MAC Key

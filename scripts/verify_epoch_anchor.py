@@ -3,10 +3,8 @@ import time
 import subprocess
 import requests
 import sys
-import os
 import random
 import string
-import threading
 
 # Add repo root to sys.path
 from pathlib import Path
@@ -79,7 +77,7 @@ def run_test():
         
         # B verifies A
         if not client_b.process_verify_req("A", msg_a, ttl_s=300):
-             print(f"[!] B failed to verify A")
+             print("[!] B failed to verify A")
              return
 
         print("[*] Session Established A -> B (on B).")

@@ -2,9 +2,6 @@
 import unittest
 import os
 import sys
-import struct
-import hashlib
-from typing import Dict, Any
 
 # Add repo root to sys.path
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -12,7 +9,6 @@ sys.path.insert(0, root_dir)
 sys.path.insert(0, os.path.dirname(root_dir))
 
 from hive.node import FieldBoundNode
-from hive.crypto import derive_mac_key
 from core.vocab_codec import Vocab
 
 def _create_dummy_vocab():

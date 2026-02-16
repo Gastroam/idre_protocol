@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 import sys
+import os
 import subprocess
 from pathlib import Path
 
@@ -22,6 +23,18 @@ def run_verification_scripts():
     scripts_dir = REPO_ROOT / "scripts"
     scripts = sorted(scripts_dir.glob("verify_*.py"))
     
+    env = os.environ.copy()
+    # Force UTF-8 stdio on Windows so verification scripts can print any Unicode safely.
+    env["PYTHONUTF8"] = "1"
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    timeouts_s = {
+        # This script intentionally runs for ~60s in its drift phase.
+        "verify_resonant_drift.py": 240,
+        # Real-stream harness spawns processes and runs multiple phases.
+        "verify_real_stream.py": 180,
+    }
+
     success = True
     for script in scripts:
         if script.name == "verify_all.py":
@@ -30,11 +43,12 @@ def run_verification_scripts():
         try:
             # Run script in subprocess to ensure clean state
             # Run with timeout to prevent hangs
-            proc = subprocess.run(
-                [sys.executable, str(script)], 
+            subprocess.run(
+                [sys.executable, "-X", "utf8", str(script)],
                 cwd=str(REPO_ROOT),
                 check=True,
-                timeout=60 # 1 minute per script default
+                timeout=int(timeouts_s.get(script.name, 60)),  # default 1 minute per script
+                env=env,
             )
         except subprocess.CalledProcessError:
             print(f"!!! FAILED: {script.name}")

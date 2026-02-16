@@ -1,7 +1,7 @@
 import hmac
 import hashlib
 import struct
-from typing import Dict, List, Optional, Tuple, Deque
+from typing import Dict, List, Tuple, Deque
 from collections import deque
 
 # --- Opcodes (Internal to Encrypted Payload) ---
@@ -50,9 +50,9 @@ class NeuralCodec:
         self.encoder = CodecState(session_key, f"{role}_enc")
         self.decoder = CodecState(session_key, f"{role}_dec")
 
-    def encode(self, plaintext: bytes, injected_packets: List[bytes] = []) -> bytes:
+    def encode(self, plaintext: bytes, injected_packets: List[bytes] | None = None) -> bytes:
         """Compress plaintext into internal opcode stream, optionally injecting packets."""
-        return self.encoder.encode_packet(plaintext, injected_packets)
+        return self.encoder.encode_packet(plaintext, list(injected_packets or []))
 
     def decode(self, stream: bytes) -> Tuple[bytes, List[bytes]]:
         # ... (unchanged)
@@ -113,12 +113,12 @@ class CodecState:
         h = hmac.new(self.key, data, HASH_FUNC).digest()
         return struct.unpack(">I", h[:4])[0]
 
-    def encode_packet(self, data: bytes, injected_packets: List[bytes] = []) -> bytes:
+    def encode_packet(self, data: bytes, injected_packets: List[bytes] | None = None) -> bytes:
         # output buffer
         out = bytearray()
-        
+         
         # Inject ACKs
-        for pkt in injected_packets:
+        for pkt in (injected_packets or []):
             out.extend(pkt)
         
         # Check Active Dict

@@ -9,7 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
-from .primitives import (
+from .physics_v12 import (
     compute_block_salt,
     derive_keystream_and_permutation,
     inverse_permute,

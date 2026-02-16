@@ -3,10 +3,8 @@ import time
 import subprocess
 import requests
 import sys
-import os
 import random
 import string
-import threading
 
 # Add repo root to sys.path
 from pathlib import Path

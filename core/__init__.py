@@ -3,9 +3,15 @@
 This is a minimal extraction intended to become the standalone IDRE repo.
 """
 
-from .field import derive_locked_plane, scan_fingerprint_bits, seeded_unit_vector
-from .primitives import compute_block_salt, derive_keystream_and_permutation
-from .session import HiveSession, NonceWindow
+from .physics_v12 import (
+    compute_block_salt,
+    derive_keystream_and_permutation,
+    derive_locked_plane,
+    derive_locked_planes,
+    scan_fingerprint_bits,
+    seeded_unit_vector,
+)
+from .session import HiveSession, NonceWindow, PendingChallenge
 from .wire import MAC_LEN, canonical_json, frame_payload, unframe_payload
 from .wire_bin import pack_receive_envelope, pack_wire_message, unpack_receive_envelope, unpack_wire_message
 from .vocab_codec import Vocab, decode_text, encode_text, load_vocab, load_vocab_registry, peek_vocab_id
@@ -15,12 +21,14 @@ __all__ = [
     "MAC_LEN",
     "HiveSession",
     "NonceWindow",
+    "PendingChallenge",
     "Vocab",
     "canonical_json",
     "compute_block_salt",
     "decode_text",
     "derive_keystream_and_permutation",
     "derive_locked_plane",
+    "derive_locked_planes",
     "encode_text",
     "frame_payload",
     "load_vocab",

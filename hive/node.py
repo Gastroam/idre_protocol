@@ -1,12 +1,7 @@
 import hashlib
 import hmac
-import json
 import secrets
-import struct
-import threading
 import time
-from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -19,73 +14,56 @@ except Exception:
 
 from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
 from idre_clean.core.offline_envelope import open_envelope
-from idre_clean.core.wire_bin import pack_receive_envelope, pack_wire_message, unpack_receive_envelope
 from idre_clean.core.vocab_codec import (
     Vocab,
     decode_text as vocab_decode_text,
     encode_text as vocab_encode_text,
-    load_vocab_registry,
     peek_vocab_id as vocab_peek_vocab_id,
 )
 
 from .utils import (
-    _sha256, canonical_json, compute_field_profile_id, _now_ms, 
+    canonical_json,
+    compute_field_profile_id,
+    _now_ms,
     frame_payload, unframe_payload, 
     pack_plaintext, unpack_plaintext, MAC_LEN, DEFAULT_MAX_CT_LEN, RESONANT_SIGNATURE,
-    _expand_bytes,
-    DEFAULT_MAX_PAYLOAD_INTS, DEFAULT_MAX_BODY_BYTES, 
+    DEFAULT_MAX_PAYLOAD_INTS,
     DEFAULT_CHALLENGE_TTL_MS, DEFAULT_SKEW_MS, 
     DEFAULT_MAX_TTL_MS, DEFAULT_DEFAULT_TTL_MS, 
     DEFAULT_MAX_PENDING_CHALLENGES
 )
-from .physics import (
-    derive_locked_planes, seeded_unit_vector, 
-    scan_fingerprint_bits, compute_block_salt, derive_keystream_and_permutation, 
-    permute, inverse_permute, xor_bytes
-)
+try:
+    from idre_clean.core.physics_v12 import (
+        derive_locked_planes,
+        scan_fingerprint_bits,
+        seeded_unit_vector,
+    )
+except Exception:
+    from core.physics_v12 import (
+        derive_locked_planes,
+        scan_fingerprint_bits,
+        seeded_unit_vector,
+    )
 from .topology import TopologyManager
-from .session import HiveSession, PendingChallenge, NonceWindow
-from idre_clean.core.neural_codec import NeuralCodec, OP_ACK
-from .crypto import (
-    crypt_with_bits, derive_mac_key, 
-    seal_stream, open_stream,
-    _sha256 as crypto_sha256 # internal alias if needed, or just use module
+from .substrate import FrozenSubstrate
+from .challenges import ChallengeStore
+from .protocol import (
+    aad_with_epoch_anchor,
+    codec_session_key,
+    forced_chain_hash,
+    genesis_chain_hash,
+    update_chain_hash,
+    verify_req_aad,
 )
+from .ratchet import derive_ratchet_bits, kdf_int
+try:
+    from idre_clean.core.session import HiveSession, PendingChallenge
+except Exception:
+    from core.session import HiveSession, PendingChallenge
+from idre_clean.core.neural_codec import NeuralCodec
+from .crypto import derive_mac_key
 
 
-
-
-@dataclass(frozen=True)
-class _FrozenNeuron:
-    weights: np.ndarray
-    bias: float = 0.0
-
-
-class FrozenSubstrate:
-    """Weights-only substrate for Option A (frozen)."""
-
-    def __init__(self, *, embedding_dim: int, seed_scales: Dict[int, float], bias: float = 0.0, folding_matrix: Optional[np.ndarray] = None):
-        self.embedding_dim = int(embedding_dim)
-        self.bias = float(bias)
-        self._neurons: Dict[int, _FrozenNeuron] = {}
-        for seed, scale in seed_scales.items():
-            s = int(seed)
-            sc = float(scale)
-            # Generate Raw Vector
-            w = seeded_unit_vector(s, self.embedding_dim) * sc
-            
-            # IDRE v3: Fold In-Memory
-            # W_fold = W_true @ P_fold
-            if folding_matrix is not None:
-                w = np.dot(w, folding_matrix)
-
-            self._neurons[s] = _FrozenNeuron(weights=w.astype(np.float64), bias=self.bias)
-
-    def has(self, seed: int) -> bool:
-        return int(seed) in self._neurons
-
-    def get(self, seed: int) -> _FrozenNeuron:
-        return self._neurons[int(seed)]
 
 
 class FieldBoundNode:
@@ -112,6 +90,7 @@ class FieldBoundNode:
         max_plaintext_bytes: int = 65535,
         plasticity: bool = False,
         pepper: str = "",
+        healing_mode: str = "none",
     ):
         self.node_id = str(node_id)
         self.pepper = str(pepper)
@@ -156,7 +135,6 @@ class FieldBoundNode:
 
         self.config = MTIConfig()
         self.embedding_dim = int(getattr(self.config, "embedding_dim", 64))
-        self.embedding_dim = int(getattr(self.config, "embedding_dim", 64))
         self._plane_list = derive_locked_planes(int(self.config.embedding_dim), self.planes)
 
 
@@ -175,10 +153,19 @@ class FieldBoundNode:
         }
         self.field_profile_id: str = compute_field_profile_id(self.field_profile)
 
-        self.sessions: Dict[str, HiveSession] = {}
-        self.pending_challenges: Dict[str, PendingChallenge] = {}
+        # REFACTORED: Resonant Multiverse Support
+        # self.timelines: PeerID -> List[HiveSession]
+        # We limit the number of active forks to avoid explosion.
+        self.timelines: Dict[str, List[HiveSession]] = {}
+        
+        # Healing Mode: "none" (Die), "multiverse" (Fork)
+        # We default to "none" for strict security, unless user asks.
+        # User requested 2 forks active for PoC.
+        self.healing_mode = healing_mode
+        
+        self._challenges = ChallengeStore()
+        self.pending_challenges: Dict[str, PendingChallenge] = self._challenges.pending
         self.max_pending_challenges = int(DEFAULT_MAX_PENDING_CHALLENGES)
-        self._challenge_lock = threading.Lock()
         self._allowed_seeds = set([int(self.seed), *map(int, self.anchor_seeds)])
         self._cached_bits: Optional[List[int]] = None
         self._frozen: Optional[FrozenSubstrate] = None
@@ -406,59 +393,15 @@ class FieldBoundNode:
             self._cached_bits = list(bits)
         return bits
 
-    def _cleanup_challenges(self, *, now_ms: int) -> None:
-        dead = []
-        for pid, rec in self.pending_challenges.items():
-            if bool(rec.used) or int(now_ms) > int(rec.expires_at_ms):
-                dead.append(pid)
-        for pid in dead:
-            self.pending_challenges.pop(pid, None)
-
     def issue_challenge(self, peer_id: str) -> PendingChallenge:
-        pid = str(peer_id)
-        ch = secrets.token_hex(16)
-        n_ms = int(_now_ms())
-        rec = PendingChallenge(
-            challenge=str(ch),
-            issued_at_ms=int(n_ms),
-            expires_at_ms=int(n_ms) + int(self.challenge_ttl_ms),
-            used=False,
+        return self._challenges.issue(
+            peer_id=str(peer_id),
+            ttl_ms=int(self.challenge_ttl_ms),
+            max_pending=int(self.max_pending_challenges),
         )
-        with self._challenge_lock:
-            self._cleanup_challenges(now_ms=n_ms)
-            if pid not in self.pending_challenges and len(self.pending_challenges) >= int(self.max_pending_challenges):
-                oldest_pid = None
-                oldest_t = None
-                for k, v in self.pending_challenges.items():
-                    t = int(getattr(v, "issued_at_ms", 0))
-                    if oldest_t is None or t < int(oldest_t):
-                        oldest_t = t
-                        oldest_pid = k
-                if oldest_pid is not None:
-                    self.pending_challenges.pop(str(oldest_pid), None)
-            self.pending_challenges[pid] = rec
-        return rec
 
     def consume_challenge(self, peer_id: str, challenge: str) -> bool:
-        pid = str(peer_id)
-        n_ms = int(_now_ms())
-        with self._challenge_lock:
-            self._cleanup_challenges(now_ms=n_ms)
-            rec = self.pending_challenges.get(pid)
-            if rec is None:
-                return False
-            if bool(rec.used):
-                self.pending_challenges.pop(pid, None)
-                return False
-            if int(n_ms) > int(rec.expires_at_ms):
-                self.pending_challenges.pop(pid, None)
-                return False
-            if str(challenge) != str(rec.challenge):
-                self.pending_challenges.pop(pid, None)
-                return False
-            rec.used = True
-            self.pending_challenges.pop(pid, None)
-            return True
+        return bool(self._challenges.consume(str(peer_id), str(challenge)))
 
 
 
@@ -472,7 +415,7 @@ class FieldBoundNode:
         pad_bytes: int = 0,
         aad: bytes = b"",
         codec: Optional[NeuralCodec] = None,
-        injected_packets: List[bytes] = [],
+        injected_packets: Optional[List[bytes]] = None,
         ratchet_key: Optional[int] = None,
     ) -> Tuple[List[int], bytes]:
         if self.config and getattr(self, "content_codec", "utf8") == "vocab" and self.vocab:
@@ -493,7 +436,7 @@ class FieldBoundNode:
             pad_bytes=int(pad_bytes),
             aad=aad,
             codec=codec,
-            injected_packets=injected_packets,
+            injected_packets=list(injected_packets or []),
             ratchet_key=ratchet_key,
         )
 
@@ -507,7 +450,7 @@ class FieldBoundNode:
         pad_bytes: int = 0,
         aad: bytes = b"",
         codec: Optional[NeuralCodec] = None,
-        injected_packets: List[bytes] = [],
+        injected_packets: Optional[List[bytes]] = None,
         ratchet_key: Optional[int] = None,
     ) -> Tuple[List[int], bytes]:
         from .crypto import encrypt_stream as _encrypt_stream
@@ -515,7 +458,9 @@ class FieldBoundNode:
         # Retrieve state (bits)
         # Ouroboros: Use provided Ratchet Key (KDF), else Root Seed (Field)
         if ratchet_key is not None:
-             bits = self._derive_ratchet_bits(int(ratchet_key))
+             if self._cached_bits is None:
+                  self._cached_bits = self._compute_fingerprint_bits(self.seed, mutate=False)
+             bits = derive_ratchet_bits(int(ratchet_key), len(self._cached_bits))
              # No field evolution for ratchet keys (they are purely mathematical)
         else:
              bits = self.fingerprint_bits(self.seed, mutate=False, context_data=session_id.encode())
@@ -530,7 +475,7 @@ class FieldBoundNode:
             pad_bytes=0,
             max_bytes=int(self.max_plaintext_bytes),
             codec=codec,
-            injected_packets=injected_packets            
+            injected_packets=list(injected_packets or [])
         )
         
         # Calculate MAC Key
@@ -609,7 +554,9 @@ class FieldBoundNode:
         # Retrieve state (bits)
         # Ouroboros: Use Ratchet Key if available
         if ratchet_key is not None:
-             bits = self._derive_ratchet_bits(int(ratchet_key))
+             if self._cached_bits is None:
+                  self._cached_bits = self._compute_fingerprint_bits(self.seed, mutate=False)
+             bits = derive_ratchet_bits(int(ratchet_key), len(self._cached_bits))
         else:
              bits = self.fingerprint_bits(self.seed, mutate=False, context_data=session_id.encode())
         
@@ -644,18 +591,17 @@ class FieldBoundNode:
 
     def create_verify_req(self, session_id: str, ephemeral_salt: int, challenge: str) -> Dict[str, Any]:
         nonce = secrets.randbits(64)
-        aad = canonical_json(
-            {
-                "type": "VERIFY_REQ",
-                "field_profile_id": str(getattr(self, "field_profile_id", "")),
-                "challenge": str(challenge),
-                "session_id": str(session_id),
-                "nonce": int(nonce),
-                "ephemeral_salt": int(ephemeral_salt),
-            }
+        hdr, aad = verify_req_aad(
+            field_profile_id=str(getattr(self, "field_profile_id", "")),
+            challenge=str(challenge),
+            session_id=str(session_id),
+            nonce=int(nonce),
+            ephemeral_salt=int(ephemeral_salt),
         )
-        payload, _ = self.encrypt_message(
-            RESONANT_SIGNATURE,
+        # Handshake payload must stay stable regardless of content codec (utf8 vs vocab).
+        # The verify path expects `pack_plaintext` framing.
+        payload, _ = self.encrypt_bytes(
+            pack_plaintext(RESONANT_SIGNATURE),
             session_id=str(session_id),
             nonce=int(nonce),
             ephemeral_salt=int(ephemeral_salt),
@@ -664,24 +610,18 @@ class FieldBoundNode:
         )
         if self.print_events:
             print(f"[{self.node_id}] VERIFY_REQ create session={str(session_id)[:8]}.. nonce={nonce}")
-        return {
-            "type": "VERIFY_REQ",
-            "field_profile_id": str(getattr(self, "field_profile_id", "")),
-            "challenge": str(challenge),
-            "session_id": str(session_id),
-            "nonce": int(nonce),
-            "ephemeral_salt": int(ephemeral_salt),
-            "payload": payload,
-        }
+        hdr["payload"] = payload
+        return hdr
 
     def process_verify_req(self, msg: Dict[str, Any], peer_id: str, ttl_s: float = 600.0) -> bool:
-        if peer_id not in self.pending_challenges:
+        # Validate challenge and expiry first; consume only after signature verifies.
+        challenge_in_msg = str(msg.get("challenge", ""))
+        rec = self._challenges.peek_if_valid(str(peer_id), challenge_in_msg)
+        if rec is None:
             if self.print_events:
                 print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (no_pending_challenge)")
             return False
-
-        rec = self.pending_challenges[peer_id]
-        challenge_str = rec.challenge
+        challenge_str = str(rec.challenge)
         
         payload_list = msg.get("payload")
         if not isinstance(payload_list, list):
@@ -693,15 +633,12 @@ class FieldBoundNode:
         sess_id = str(msg.get("session_id", ""))
         nonce = int(msg.get("nonce", 0))
         
-        aad = canonical_json(
-            {
-                "type": "VERIFY_REQ",
-                "field_profile_id": str(getattr(self, "field_profile_id", "")),
-                "challenge": str(challenge_str),
-                "session_id": str(sess_id),
-                "nonce": int(nonce),
-                "ephemeral_salt": int(e_salt),
-            }
+        _hdr, aad = verify_req_aad(
+            field_profile_id=str(getattr(self, "field_profile_id", "")),
+            challenge=str(challenge_str),
+            session_id=str(sess_id),
+            nonce=int(nonce),
+            ephemeral_salt=int(e_salt),
         )
 
         valid, text, _, _ = self.decrypt_message(
@@ -718,19 +655,19 @@ class FieldBoundNode:
                 print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} reason={reason}")
             return False
 
+        # Consume challenge on success (one-time use).
+        self._challenges.consume(str(peer_id), challenge_in_msg)
+
         # Epoch Anchor: Initialize rolling chain hash
-        # Genesis Hash = HMAC(seed, "GENESIS:" + sess_id)
-        # Both sides start with same genesis hash for out/in sequences.
-        genesis_key = hmac.new(str(self.seed).encode(), f"GENESIS:{sess_id}".encode(), hashlib.sha256).digest()
+        genesis_key = genesis_chain_hash(int(self.seed), str(sess_id))
         
         # Neural Codec Init
-        codec_key = hmac.new(str(self.seed).encode(), f"CODEC:{sess_id}".encode(), hashlib.sha256).digest()
-        codec = NeuralCodec(codec_key, role="responder")
+        codec = NeuralCodec(codec_session_key(int(self.seed), str(sess_id)), role="responder")
         
         # Ouroboros: Initialize Ratchet Key from Root Seed + Session ID
-        ratchet_key = self._kdf(self.seed, f"INIT::{sess_id}")
+        ratchet_key = kdf_int(int(self.seed), f"INIT::{sess_id}")
 
-        self.sessions[peer_id] = HiveSession(
+        new_session = HiveSession(
             session_id=sess_id,
             peer_id=peer_id,
             start_time=time.time(),
@@ -742,25 +679,25 @@ class FieldBoundNode:
             codec=codec,
             ratchet_key=ratchet_key
         )
+        
+        # Multiverse: Initialize Timeline (Clear old forks if new handshake)
+        self.timelines[peer_id] = [new_session]
+        
         if self.print_events:
             print(f"[{self.node_id}] SESSION ESTABLISHED with {peer_id} (sid={sess_id})")
-        
-        del self.pending_challenges[peer_id]
         return True
 
     def force_session(self, peer_id: str, session_id: str, ephemeral_salt: int):
         # Epoch Anchor: Initialize rolling chain hash
-        genesis_input = f"{self.seed}:{session_id}:GENESIS".encode("utf-8")
-        chain_hash = hashlib.sha256(genesis_input).digest()
+        chain_hash = forced_chain_hash(int(self.seed), str(session_id))
         
         # Neural Codec Init
-        codec_key = hmac.new(str(self.seed).encode(), f"CODEC:{session_id}".encode(), hashlib.sha256).digest()
-        codec = NeuralCodec(codec_key, role="forced")
+        codec = NeuralCodec(codec_session_key(int(self.seed), str(session_id)), role="forced")
 
         # Ouroboros: Initialize Ratchet Key
-        ratchet_key = self._kdf(self.seed, f"INIT::{session_id}")
+        ratchet_key = kdf_int(int(self.seed), f"INIT::{session_id}")
 
-        self.sessions[peer_id] = HiveSession(
+        new_session = HiveSession(
             session_id=session_id,
             peer_id=str(peer_id),
             start_time=time.time(),
@@ -770,88 +707,69 @@ class FieldBoundNode:
             codec=codec,
             ratchet_key=ratchet_key
         )
+        self.timelines[peer_id] = [new_session]
+        
         if self.print_events:
             print(f"[{self.node_id}] SESSION FORCED with {peer_id} (sid={session_id})")
 
     def rollback_anchor(self, peer_id: str) -> bool:
         """Rollback Epoch Anchor to previous state if delivery failed."""
         dst = str(peer_id)
-        if dst not in self.sessions:
+        if dst not in self.timelines or not self.timelines[dst]:
              return False
-        sess = self.sessions[dst]
-        if not sess.prev_chain_hash:
-             return False
-        sess.chain_hash = sess.prev_chain_hash
-        sess.prev_chain_hash = b""
+        
+        # We roll back ALL active timelines? Or just the primary?
+        # Typically rollback implies we FAILED to send. Sending works on the 'best' timeline usually.
+        # For simplicity, rollback all active timelines for this peer.
+        for sess in self.timelines[dst]:
+            if sess.prev_chain_hash:
+                sess.chain_hash = sess.prev_chain_hash
+                sess.prev_chain_hash = b""
+        
         if self.print_events:
              print(f"[{self.node_id}] ROLLBACK ANCHOR peer={dst}")
         return True
-
-    def _kdf(self, input_key: int, data: str) -> int:
-        """Key Derivation Function: HMAC-SHA256(Key, Data) -> Int"""
-        key_bytes = str(input_key).encode()
-        data_bytes = data.encode()
-        digest = hmac.new(key_bytes, data_bytes, hashlib.sha256).hexdigest()
-        return int(digest, 16)
-
-    def _derive_ratchet_bits(self, ratchet_key: int) -> List[int]:
-        """
-        Derive pseudo-random bits from a Ratchet Key for transport encryption.
-        This bypasses the Neural Field (which is likely frozen/static) and uses
-        standard crypto primitives to generate the keystream bits, ensuring
-        Forward Secrecy without requiring lattice plasticity.
-        """
-        # 1. Determine target length from Root Seed bits
-        if self._cached_bits is None:
-             self._cached_bits = self._compute_fingerprint_bits(self.seed, mutate=False)
-        target_len = len(self._cached_bits)
-        
-        # 2. Expand Ratchet Key into bits
-        # We need target_len bits (0 or 1)
-        # We use HKDF-like expansion using HMAC-SHA256
-        out = []
-        counter = 0
-        key_bytes = str(ratchet_key).encode()
-        
-        while len(out) < target_len:
-             # Hash(Key + Counter)
-             block = hmac.new(key_bytes, counter.to_bytes(4, 'big'), hashlib.sha256).digest()
-             # Convert bytes to bits
-             for b in block:
-                  for i in range(8):
-                       if len(out) >= target_len: break
-                       out.append((b >> i) & 1)
-             counter += 1
-        return out
 
     def ingest_finalized_block(self, block_hash: str):
         """
         The Ouroboros Trigger.
         Called when the Substrate Light Client confirms a new finalized block.
-        Rotates ALL session keys forward. Forward Secrecy is immediate.
+        Rotates ALL session keys (in ALL timelines) forward. Forward Secrecy is immediate.
         """
         if self.print_events:
             print(f"[*] Ouroboros: Ingesting Reality {block_hash[:8]}...")
         
-        for sess_id, sess in self.sessions.items():
-            if sess.ratchet_key is None:
-                continue # Skip legacy sessions
-            
-            # 1. Evolve the Key
-            # Next_Key = HMAC(Current_Key, Block_Hash || Pepper)
-            old_key_fragment = str(sess.ratchet_key)[:8]
-            
-            mix_data = str(block_hash)
-            if self.pepper:
-                mix_data += f":{self.pepper}"
-            
-            sess.ratchet_key = self._kdf(sess.ratchet_key, mix_data)
-            
-            # 2. Update Metadata
-            sess.last_ratchet_hash = block_hash
-            
-            if self.print_events:
-                print(f"    [>] Session {sess_id[:6]}: Ratcheted {old_key_fragment}... -> {str(sess.ratchet_key)[:8]}...")
+        for peer_id, timelines in self.timelines.items():
+            for sess in timelines:
+                if sess.ratchet_key is None:
+                    continue # Skip legacy sessions
+                
+                # 1. Evolve the Key
+                # Next_Key = HMAC(Current_Key, Block_Hash || Pepper)
+                old_key_fragment = str(sess.ratchet_key)[:8]
+                
+                mix_data = str(block_hash)
+                if self.pepper:
+                    mix_data += f":{self.pepper}"
+
+                sess.ratchet_key = kdf_int(int(sess.ratchet_key), mix_data)
+                
+                # 2. Update Metadata
+                sess.last_ratchet_hash = block_hash
+                
+                if self.print_events:
+                    print(f"    [>] Session {sess.session_id[:6]} ({peer_id}): Ratcheted {old_key_fragment}... -> {str(sess.ratchet_key)[:8]}...")
+
+    @property
+    def sessions(self) -> Dict[str, HiveSession]:
+        """Backward compatibility view: returns primary timeline for each peer."""
+        return {pid: tls[0] for pid, tls in self.timelines.items() if tls}
+
+    def _prune_timelines(self, peer_id: str, winner: HiveSession):
+        """Collapse the multiverse to the winning timeline."""
+        # In a full implementation, we might keep some backups, but for "Shattered Glass" PoC,
+        # we collapse to the single truth immediately to save resources.
+        self.timelines[peer_id] = [winner]
 
     def send(
         self,
@@ -863,18 +781,23 @@ class FieldBoundNode:
         override_expires_at_ms: Optional[int] = None,
     ) -> Dict[str, Any]:
         dst = str(dst_node_id)
-        if dst not in self.sessions:
+        if dst not in self.timelines or not self.timelines[dst]:
             if self.print_events:
                 print(f"[{self.node_id}] SEND blocked dst={dst} (no_session)")
             return {}
-        sess = self.sessions[dst]
+        
+        # Always send on the PRIMARY timeline (Index 0).
+        # In a Multiverse, we emit based on our "Best Guess" reality.
+        # If we are forked, Index 0 should represent the "Optimist" (Main) or "Winner".
+        sess = self.timelines[dst][0]
+        
         if not sess.is_valid():
             if self.print_events:
                 print(f"[{self.node_id}] SEND blocked dst={dst} (session_expired)")
             return {}
 
         nonce = secrets.randbits(64)
-        while nonce in sess.seen._set:
+        while sess.seen.contains(nonce):
             nonce = secrets.randbits(64)
 
         if override_created_at_ms is not None:
@@ -902,7 +825,7 @@ class FieldBoundNode:
         aad = canonical_json(header)
         sess.out_seq += 1
         # Epoch Anchor: Bind to rolling chain hash AND Sequence Number
-        aad_with_anchor = aad + sess.chain_hash + struct.pack(">Q", sess.out_seq)
+        aad_with_anchor = aad_with_epoch_anchor(aad, chain_hash=sess.chain_hash, seq=sess.out_seq)
 
         # Piggyback ACKs (Neural Codec)
         acks = []
@@ -939,9 +862,9 @@ class FieldBoundNode:
                 )
             
             # Epoch Anchor: Update rolling chain hash (with rollback support)
-            payload_bytes = bytes(payload)
+            # Epoch Anchor: Update rolling chain hash (with rollback support)
             sess.prev_chain_hash = sess.chain_hash
-            sess.chain_hash = hashlib.sha256(sess.chain_hash + payload_bytes).digest()
+            sess.chain_hash = update_chain_hash(sess.chain_hash, sess.out_seq)
 
         except Exception as e:
             # Revert sequence on failure to ensure next try matches
@@ -958,54 +881,46 @@ class FieldBoundNode:
 
     def receive(self, msg: Dict[str, Any], prev_hop_id: str) -> Dict[str, Any]:
         prev = str(prev_hop_id)
-        if prev not in self.sessions:
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=unknown_session")
-            return {"status": "reject", "reason": "unknown_session"}
+        if prev not in self.sessions: # Note: self.sessions is the property view, but self.timelines has the real data
+            # Check timelines directly
+            if prev not in self.timelines or not self.timelines[prev]:
+                if self.print_events:
+                    print(f"[{self.node_id}] RECV reject from={prev} reason=unknown_session")
+                return {"status": "reject", "reason": "unknown_session"}
 
         if str(msg.get("field_profile_id", "")) != str(getattr(self, "field_profile_id", "")):
             if self.print_events:
                 print(f"[{self.node_id}] RECV reject from={prev} reason=wrong_profile")
             return {"status": "reject", "reason": "wrong_profile"}
 
-        sess = self.sessions[prev]
-        if not sess.is_valid() or str(msg.get("session_id")) != sess.session_id:
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=invalid_session")
-            return {"status": "reject", "reason": "invalid_session"}
+        # Note: We skip checking 'sess' validity here because we might have multiple timelines.
+        # We process validity per-timeline in the loop.
 
         nonce = int(msg.get("nonce", 0))
         
-        # PLASTICITY PROTECTION: Check Replay BEFORE Decrypt/Evolve
-        if nonce in sess.seen._set:
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=replay nonce={nonce}")
-            return {"status": "reject", "reason": "replay"}
-            
+        # We can't check replay globally yet, need to identify session.
+        # But wait, replay protection is per-session.
+        
         created_at_ms = int(msg.get("created_at_ms", 0) or 0)
         expires_at_ms = int(msg.get("expires_at_ms", 0) or 0)
+        # ... checks ...
         if created_at_ms <= 0 or expires_at_ms <= 0:
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=bad_time")
+            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=bad_time")
             return {"status": "reject", "reason": "bad_time"}
         now_ms = _now_ms()
         if now_ms > int(expires_at_ms):
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=expired")
+            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=expired")
             return {"status": "reject", "reason": "expired"}
         if int(created_at_ms) > int(now_ms) + int(self.skew_ms):
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=clock_skew")
+            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=clock_skew")
             return {"status": "reject", "reason": "clock_skew"}
         if int(expires_at_ms) - int(created_at_ms) > int(self.max_ttl_ms):
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=ttl_too_long")
+            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=ttl_too_long")
             return {"status": "reject", "reason": "ttl_too_long"}
 
         payload = msg.get("payload")
         if not isinstance(payload, list):
-            if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=bad_payload")
+            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=bad_payload")
             return {"status": "reject", "reason": "bad_payload"}
 
         header = {
@@ -1020,82 +935,156 @@ class FieldBoundNode:
             "hop_count": int(msg.get("hop_count", 0)),
             "max_hops": int(msg.get("max_hops", 0)),
         }
-        aad = canonical_json(header)
-        # Epoch Anchor: Bind to Consensus Reality (Block Hash) AND Sequence Number
-        # SLIDING WINDOW (W=5)
+        base_aad = canonical_json(header)
+        
+        # Multiverse: Iterate active timelines
+        candidates = list(self.timelines.get(prev, []))
+        
         window_size = 5
         valid_decrypt = False
+        winner_sess = None
         blob_found = None
-        tag_found = b""
         seq_found = -1
+        acks_found = []
         
-        base_seq = sess.in_seq + 1
+        replay_detected = False
+        candidates_checked = 0
         
-        for offset in range(window_size + 1):
-            candidate_seq = base_seq + offset
-            aad_check = aad + sess.chain_hash + struct.pack(">Q", candidate_seq)
+        # We try every candidate. If healing is on, we also trying FORKING them.
+        for sess in candidates:
+            if not sess.is_valid(): continue
+            candidates_checked += 1
+            if sess.seen.contains(nonce): 
+                replay_detected = True
+                continue # Replay check per session
             
-            blob_opt, reason_opt, acks_opt, tag_opt = self.decrypt_bytes(
-                payload, session_id=sess.session_id, nonce=nonce, ephemeral_salt=sess.ephemeral_salt, 
-                aad=aad_check, codec=sess.codec, ratchet_key=sess.ratchet_key
-            )
+            base_seq = sess.in_seq + 1
             
-            if blob_opt is not None:
-                valid_decrypt = True
-                blob_found = blob_opt
-                seq_found = candidate_seq
-                if acks_opt:
-                    sess.pending_acks.extend(acks_opt)
-                break
+            # 1. Sovereign Trial (Current State)
+            for offset in range(window_size + 1):
+                c_seq = base_seq + offset
+                aad = aad_with_epoch_anchor(base_aad, chain_hash=sess.chain_hash, seq=c_seq)
+                
+                b, r, a, t = self.decrypt_bytes(
+                    payload, session_id=sess.session_id, nonce=nonce, ephemeral_salt=sess.ephemeral_salt, 
+                    aad=aad, codec=sess.codec, ratchet_key=sess.ratchet_key
+                )
+                if b is not None:
+                    valid_decrypt = True
+                    winner_sess = sess
+                    blob_found, acks_found, seq_found = b, a, c_seq
+                    break
+            
+            if valid_decrypt: break
+
+            # 2. Resonant Trial (Phantom Key / Fork)
+            if self.healing_mode == "multiverse":
+                # Limit active forks to 2 (User Request)
+                if len(self.timelines.get(prev, [])) >= 2:
+                    if self.print_events:
+                        print(f"[{self.node_id}] MULTIVERSE: Skip fork (Limit 2 reached)")
+                    continue
+
+                # Try to HEAL by fast-forwarding the Chain Hash for skipped packets
+                # We assume no payload dependency, so we can derive H_t from H_{t-n} + Seqs.
+                for offset in range(1, window_size + 1):
+                    c_seq = base_seq + offset
+                    
+                    # Fast-forward hash from base_seq to c_seq - 1
+                    phantom_hash = sess.chain_hash
+                    for skipped in range(base_seq, c_seq):
+                         phantom_hash = update_chain_hash(phantom_hash, skipped)
+                    
+                    # Now try decrypt with proper phantom_hash
+                    aad_phantom = aad_with_epoch_anchor(base_aad, chain_hash=phantom_hash, seq=c_seq)
+                    
+                    # Note: We still use current ratchet_key. 
+                    # If Plasticity (Lattice Evolution) is required, we fail here unless backend is Frozen.
+                    # TODO: Simulate Lattice Evolution for Phantom Request? 
+                    # For now, we assume Frozen or "Slow Drift" where key is valid for window.
+                    
+                    b2, r2, a2, t2 = self.decrypt_bytes(
+                        payload, session_id=sess.session_id, nonce=nonce, ephemeral_salt=sess.ephemeral_salt, 
+                        aad=aad_phantom, codec=sess.codec, ratchet_key=sess.ratchet_key
+                    )
+                    if b2 is not None:
+                        # SUCCESS!
+                        recall_phantom = sess.clone()
+                        recall_phantom.chain_hash = phantom_hash # Fast-forwarded state
+                        # Evolve logic handles the *current* packet, but we missed evolution for skipped packets?
+                        # If backend=lattice, we are desynced in LATTICE state.
+                        # Ideally we call `_evolve_lattice(seed)` 'offset' times.
+                        # But we can't do that safely on shared lattice.
+                        # So this Healing only works for "Frozen" backend or "Robust" Neural Codec.
+                        
+                        winner_sess = recall_phantom
+                        blob_found, acks_found, seq_found = b2, a2, c_seq
+                        valid_decrypt = True
+                        if self.print_events:
+                            print(f"[{self.node_id}] MULTIVERSE: Phantom Timeline Verified! (Seq {c_seq})")
+                        break
+            
+            if valid_decrypt: break
         
         if not valid_decrypt:
+             if replay_detected:
+                 if self.print_events:
+                     print(f"[{self.node_id}] RECV reject from={prev} reason=replay")
+                 return {"status": "reject", "reason": "replay"}
              if self.print_events:
-                 print(f"[{self.node_id}] RECV reject from={prev} reason=mac_mismatch (window={window_size})")
+                 print(f"[{self.node_id}] RECV reject from={prev} reason=mac_mismatch")
              return {"status": "reject", "reason": "mac_mismatch"}
 
-        # Update State (Gap Detection)
-        if seq_found != base_seq:
+        # COLLAPSE: Winner takes all.
+        if len(self.timelines[prev]) > 1 or winner_sess not in self.timelines[prev]:
             if self.print_events:
-                print(f"[{self.node_id}] RESILIENCE: Gap Detected! Jumped {sess.in_seq} -> {seq_found} (Missed {seq_found - sess.in_seq - 1})")
+                print(f"[{self.node_id}] MULTIVERSE: Collapse! Winner={winner_sess.session_id} (Seq {seq_found})")
+            self.timelines[prev] = [winner_sess]
+
+        sess = winner_sess
+        if acks_found:
+             sess.pending_acks.extend(acks_found)
+
+        # Update State (Gap Detection)
+        if seq_found != sess.in_seq + 1:
+            gap = seq_found - sess.in_seq - 1
+            if self.print_events:
+                print(f"[{self.node_id}] RESILIENCE: Gap Detected! {sess.in_seq} -> {seq_found} (Missed {gap})")
         
         sess.in_seq = seq_found
-        sess.chain_hash = hashlib.sha256(sess.chain_hash + bytes(payload)).digest()
+        sess.chain_hash = update_chain_hash(sess.chain_hash, sess.in_seq)
 
-        # Decode Content
+        # Decode Content (Vocab or Text)
         if self.content_codec == "utf8":
             try:
                 ok, text = unpack_plaintext(bytes(blob_found))
                 if not ok:
-                     if self.print_events:
-                         print(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error")
+                     if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error")
                      return {"status": "reject", "reason": "unpack_error"}
-            except:
-                 if self.print_events:
-                     print(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error_ex")
-                 return {"status": "reject", "reason": "unpack_error_ex"}
-                 
+            except Exception as e:
+                if self.print_events:
+                    import traceback
+                    traceback.print_exc()
+                    print(f"[{self.node_id}] RECV error: {e}")
+                return {"status": "reject", "reason": "unpack_error"}
         else: # Vocab Path
             ok_id, _reason_id, vid = vocab_peek_vocab_id(blob_found)
             if not ok_id:
-                if self.print_events:
-                    print(f"[{self.node_id}] RECV reject from={prev} reason=bad_plaintext")
+                if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=bad_plaintext")
                 return {"status": "reject", "reason": "bad_plaintext"}
             
             assert self.vocab_registry is not None
             v = self.vocab_registry.get(bytes(vid))
             if v is None:
-                if self.print_events:
-                    print(f"[{self.node_id}] RECV reject from={prev} reason=wrong_vocab")
+                if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=wrong_vocab")
                 return {"status": "reject", "reason": "wrong_vocab"}
             
             ok2, reason2, text = vocab_decode_text(blob_found, v, allow_literals=bool(self.vocab_allow_literals))
             if not ok2:
-                if self.print_events:
-                    print(f"[{self.node_id}] RECV reject from={prev} reason={reason2}")
+                if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason={reason2}")
                 return {"status": "reject", "reason": reason2}
 
         # Success! Commit Nonce and Sequence
-        # sess.in_seq already updated above (Gap Detection logic)
         sess.seen.check_and_add(nonce)
 
         if str(msg.get("dst_node_id")) == self.node_id:

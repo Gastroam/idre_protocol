@@ -3,10 +3,6 @@ import unittest
 import logging
 import sys
 import os
-import hashlib
-import hmac
-import secrets
-import time
 
 # Add repo root to path
 # We need to add 'f:\idre_clean' (or whatever the root is) to sys.path
@@ -28,22 +24,12 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 from hive.node import FieldBoundNode
-from hive.session import HiveSession
 from core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]
     t2i = {t: i for i, t in enumerate(tokens)}
     return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
-
-# We might need to mock idre_clean imports if they fail, or ensure the environment is right.
-try:
-    from idre_clean.core.neural_codec import NeuralCodec
-except ImportError:
-    # If idre_clean is not found, it might be because we are IN idre_clean and it is not a package itself in that way
-    # BUT node.py uses it.
-    # Let's try to assume we are running from root `python tests/test_shattered_glass.py`
-    pass
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -199,7 +185,7 @@ class TestShatteredGlass(unittest.TestCase):
         block_101_TRUE = "0xbb22bb22bb22bb22"  # Mainnet Hash
         block_101_FAKE = "0xdeadbeefdeadbeef"  # Fork/Clone Hash
         
-        logger.info(f"\n[!] PHASE 2: THE SHATTER EVENT.")
+        logger.info("\n[!] PHASE 2: THE SHATTER EVENT.")
         logger.info(f"    Node A & C witness True Reality: {block_101_TRUE}")
         logger.info(f"    Node B witnesses False Reality:  {block_101_FAKE}")
         
@@ -213,8 +199,6 @@ class TestShatteredGlass(unittest.TestCase):
         # VERIFY KEY DIVERGENCE
         key_a = self.node_a.sessions["B (Clone)"].ratchet_key
         key_b = self.node_b.sessions["A (Anchor)"].ratchet_key
-        key_c = self.node_c.sessions["A (Anchor)"].ratchet_key
-        
         logger.info(f"    Key A (Main): {str(key_a)[:10]}...")
         logger.info(f"    Key B (Fork): {str(key_b)[:10]}...")
         
@@ -223,7 +207,7 @@ class TestShatteredGlass(unittest.TestCase):
 
         
         # --- PHASE 3: THE BLACKOUT (Communication Attempt) ---
-        logger.info(f"\n[?] PHASE 3: Testing Isolation.")
+        logger.info("\n[?] PHASE 3: Testing Isolation.")
         
         # TEST 1: A talks to C (Should still work)
         aad_2 = b"Protocol_Header_2"
@@ -270,7 +254,7 @@ class TestShatteredGlass(unittest.TestCase):
         # --- PHASE 4: THE RESISTANCE (Replay Attack) ---
         # B tries to replay the message from Phase 1 (valid signature, old key)
         # But A has already ratcheted forward.
-        logger.info(f"\n[?] PHASE 4: Testing Forward Secrecy.")
+        logger.info("\n[?] PHASE 4: Testing Forward Secrecy.")
         # Node A receives OLD payload (Phase 1)
         # Note: We need to use 'receive' loop usually, but here we call decrypt_message directly.
         # A's key has rotated. Old payload used Old Key.

@@ -1,12 +1,16 @@
 
 import argparse
 from typing import Dict, Optional
-from idre_clean.hive.node import (
-    FieldBoundNode, 
-    DEFAULT_MAX_PAYLOAD_INTS, DEFAULT_MAX_BODY_BYTES, 
-    DEFAULT_CHALLENGE_TTL_MS, DEFAULT_SKEW_MS, 
-    DEFAULT_MAX_TTL_MS, DEFAULT_DEFAULT_TTL_MS, 
-    DEFAULT_MAX_PENDING_CHALLENGES, DEFAULT_MAX_CT_LEN
+from idre_clean.hive.node import FieldBoundNode
+from idre_clean.hive.utils import (
+    DEFAULT_MAX_PAYLOAD_INTS,
+    DEFAULT_MAX_BODY_BYTES,
+    DEFAULT_CHALLENGE_TTL_MS,
+    DEFAULT_SKEW_MS,
+    DEFAULT_MAX_TTL_MS,
+    DEFAULT_DEFAULT_TTL_MS,
+    DEFAULT_MAX_PENDING_CHALLENGES,
+    DEFAULT_MAX_CT_LEN,
 )
 from idre_clean.core.vocab_codec import Vocab, load_vocab_registry
 
@@ -41,24 +45,14 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
     ap.add_argument("--threshold", type=float, default=0.5)
     ap.add_argument("--planes", type=int, default=4, help="Number of locked planes to concatenate into the fingerprint.")
     ap.add_argument("--tau-frac", type=float, default=0.55, help="tau = projection_amplitude * tau_frac")
+    ap.add_argument("--print-deliveries", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--print-events", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--enable-plasticity", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--freeze-field", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--healing-mode", type=str, default="none")
+    ap.add_argument("--backend", type=str, default="lattice")
     
     # Backend / Mode
-    ap.add_argument("--backend", choices=["frozen", "lattice"], default="frozen", help="Field backend to use.")
-    ap.add_argument(
-        "--freeze-field",
-        action="store_true",
-        help="Initialize the allowed seeds once and prevent any new seed creation; also caches fingerprint bits.",
-    )
-    ap.add_argument(
-        "--enable-plasticity",
-        action="store_true",
-        help="Enable lattice plasticity: keys evolve with every access (Prototype Resonant Security). Requires --backend lattice.",
-    )
-    
-    # Debug / Logging
-    ap.add_argument("--print-deliveries", action="store_true")
-    ap.add_argument("--print-events", action="store_true", help="Print handshake/send/reject events (no plaintext).")
-    
     # Limits & Protocol
     ap.add_argument("--max-body-bytes", type=int, default=DEFAULT_MAX_BODY_BYTES)
     ap.add_argument("--max-payload-ints", type=int, default=DEFAULT_MAX_PAYLOAD_INTS)
@@ -130,6 +124,7 @@ def configure_node_from_args(args) -> FieldBoundNode:
         vocab_allow_literals=bool(args.vocab_allow_literals),
         max_plaintext_bytes=int(args.max_plaintext_bytes),
         plasticity=bool(args.enable_plasticity),
+        healing_mode=str(args.healing_mode),
     )
     
     # Protocol Limits

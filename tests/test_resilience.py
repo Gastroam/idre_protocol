@@ -3,7 +3,6 @@ import logging
 import time
 import os
 import sys
-import os
 
 # Fix Path for idre_clean package resolution
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +14,7 @@ if parent_dir not in sys.path:
     sys.path.append(parent_dir)
 
 from hive.node import FieldBoundNode, canonical_json
-from hive.session import HiveSession
+from core.session import HiveSession
 from core.vocab_codec import Vocab
 import struct
 
@@ -54,14 +53,14 @@ class TestResilience(unittest.TestCase):
         # Manually sync keys for test simplicity
         shared_k = 123456789
         
-        self.node_a.sessions[self.node_b.node_id] = HiveSession(
+        self.node_a.timelines[self.node_b.node_id] = [HiveSession(
             session_id=sess_id, peer_id=self.node_b.node_id, start_time=time.time(),
             ratchet_key=shared_k, ephemeral_salt=999
-        )
-        self.node_b.sessions[self.node_a.node_id] = HiveSession(
+        )]
+        self.node_b.timelines[self.node_a.node_id] = [HiveSession(
             session_id=sess_id, peer_id=self.node_a.node_id, start_time=time.time(),
             ratchet_key=shared_k, ephemeral_salt=999
-        )
+        )]
         
         # Align field geometry / codec
         dummy_field = [0] * 1024
@@ -72,7 +71,7 @@ class TestResilience(unittest.TestCase):
         # We need a dummy NeuralCodec or just assume None/Default if backend="frozen"
         # Frozen backend uses "field" logic but codec is for compression.
         # Let's ensure they match.
-        self.node_b.sessions[self.node_a.node_id].codec = self.node_a.sessions[self.node_b.node_id].codec
+        self.node_b.timelines[self.node_a.node_id][0].codec = self.node_a.timelines[self.node_b.node_id][0].codec
         
         # 3. Align Consensus Anchor (last_ratchet_hash)
         # Note: Code now uses `last_ratchet_hash` in AAD.
@@ -80,8 +79,8 @@ class TestResilience(unittest.TestCase):
         # Let's set a shared anchor
         anchor = "0xGenesisBlock"
         self.current_anchor = anchor.encode()
-        self.node_a.sessions["B (Receiver)"].chain_hash = self.current_anchor
-        self.node_b.sessions["A (Sender)"].chain_hash = self.current_anchor
+        self.node_a.timelines["B (Receiver)"][0].chain_hash = self.current_anchor
+        self.node_b.timelines["A (Sender)"][0].chain_hash = self.current_anchor
 
     def test_packet_loss_recovery(self):
         logger.info("--- Testing Packet Loss Recovery (Windowed) ---")
@@ -102,7 +101,6 @@ class TestResilience(unittest.TestCase):
                 "hop_count": 0,
                 "max_hops": 0
             }
-            from hive.node import canonical_json
             aad_base = canonical_json(header)
             aad = aad_base + self.current_anchor + struct.pack(">Q", seq_num)
             
@@ -117,19 +115,15 @@ class TestResilience(unittest.TestCase):
             )
             
             # Update Anchor (Chain Hash Simulation) if we expect this to succeed/be processed
-            # But wait, if we skip Seq 2, Sender does NOT update chain hash for Seq 2?
-            # Correct. Sender skips Seq 2. 
-            # So Sender chain hash stays at State 1.
-            # So Seq 3 should use State 1 anchor.
-            
-            # If expect_success=True, Receiver WILL process it and update chain hash.
-            # So for NEXT packet, we need updated anchor.
+            # Sender ignores update for dropped packets manually?
+            # Test logic:
             if expect_success:
                  import hashlib
-                 # Protocol Update: chain_hash = H(chain_hash + payload_bytes)
-                 # payload is List[int] from encrypt_message return
-                 payload_bytes = bytes(payload)
-                 self.current_anchor = hashlib.sha256(self.current_anchor + payload_bytes).digest()
+                 # Protocol Update: chain_hash = H(chain_hash + seq)
+                 # Wait, did we change valid update logic in NODE?
+                 # Yes, in hive/node.py we changed `update_chain_hash(chain_hash, seq)`
+                 # So we must replicate that here for the test helper!
+                 self.current_anchor = hashlib.sha256(self.current_anchor + struct.pack(">Q", seq_num)).digest()
             
             # 3. Receive
             msg = header.copy()
@@ -146,7 +140,7 @@ class TestResilience(unittest.TestCase):
         # Step 1: Normal (Seq 1)
         # Initial in_seq = 0. Expects 1.
         send_receive(1, "Msg 1 - Baseline")
-        self.assertEqual(self.node_b.sessions["A (Sender)"].in_seq, 1)
+        self.assertEqual(self.node_b.timelines["A (Sender)"][0].in_seq, 1)
         logger.info("[Pass] Seq 1 delivered.")
         
         # Step 2: Skip Seq 2 (Simulate Packet Loss)
@@ -156,7 +150,7 @@ class TestResilience(unittest.TestCase):
         # Seq 3 is inside window.
         logger.info("--- Dropping Seq 2, Sending Seq 3 ---")
         send_receive(3, "Msg 3 - Gap Check")
-        self.assertEqual(self.node_b.sessions["A (Sender)"].in_seq, 3)
+        self.assertEqual(self.node_b.timelines["A (Sender)"][0].in_seq, 3)
         logger.info("[Pass] Seq 3 delivered. Gap 2 skipped.")
         
         # Step 3: Massive Gap (Seq 10)
@@ -165,7 +159,7 @@ class TestResilience(unittest.TestCase):
         # Seq 10 is OUTSIDE window.
         logger.info("--- Sending Seq 10 (Outside Window) ---")
         send_receive(10, "Msg 10 - Too Far", expect_success=False)
-        self.assertEqual(self.node_b.sessions["A (Sender)"].in_seq, 3) # Should not advance
+        self.assertEqual(self.node_b.timelines["A (Sender)"][0].in_seq, 3) # Should not advance
         logger.info("[Pass] Seq 10 rejected.")
         
         # Step 4: Window Edge (Seq 8)
@@ -174,7 +168,7 @@ class TestResilience(unittest.TestCase):
         # Seq 8 is inside.
         logger.info("--- Sending Seq 8 (Inside Window) ---")
         send_receive(8, "Msg 8 - Edge")
-        self.assertEqual(self.node_b.sessions["A (Sender)"].in_seq, 8)
+        self.assertEqual(self.node_b.timelines["A (Sender)"][0].in_seq, 8)
         logger.info("[Pass] Seq 8 accepted.")
 
 if __name__ == "__main__":

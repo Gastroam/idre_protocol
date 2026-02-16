@@ -1,6 +1,5 @@
 import unittest
 import numpy as np
-from typing import Dict
 import sys
 from pathlib import Path
 
@@ -8,8 +7,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from idre_clean.hive.topology import TopologyManager
-from idre_clean.hive.node import FrozenSubstrate
-from idre_clean.hive.physics import scan_fingerprint_bits, seeded_unit_vector, derive_locked_plane
+from idre_clean.hive.substrate import FrozenSubstrate
+from idre_clean.core.physics_v12 import scan_fingerprint_bits, seeded_unit_vector
 
 class TestTopologyFolding(unittest.TestCase):
     def setUp(self):

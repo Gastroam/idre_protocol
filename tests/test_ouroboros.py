@@ -2,7 +2,6 @@
 import unittest
 import os
 import sys
-import time
 
 # Add repo root to sys.path
 # We need to add the PARENT of idre_clean to sys.path to import idre_clean.xxx

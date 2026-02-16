@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 import numpy as np
 
-from .field import derive_locked_plane, scan_fingerprint_bits, seeded_unit_vector
+from .physics_v12 import derive_locked_plane, scan_fingerprint_bits, seeded_unit_vector
 
 
 def derive_locked_planes_v12(dims: int, n_planes: int) -> List[Tuple[np.ndarray, np.ndarray]]:
@@ -60,4 +60,3 @@ def compute_fingerprint_bits_frozen_v12(
             )
         )
     return bits
-

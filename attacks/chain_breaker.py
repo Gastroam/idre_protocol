@@ -13,10 +13,7 @@ expects updates based on the previous (dropped) state.
 
 import sys
 import os
-import time
-import argparse
 import logging
-from typing import Optional
 
 # --- Path Injection ---
 # 1. Add current dir (scripts run from root)
@@ -38,14 +35,10 @@ try:
     from idre_clean.hive.node import FieldBoundNode
 except ImportError:
     try:
-        import idre_clean
-        from idre_clean.hive.node import FieldBoundNode
+        from hive.node import FieldBoundNode
     except ImportError:
-        try:
-             from hive.node import FieldBoundNode
-        except ImportError:
-             print("[!] FATAL: Could not import hive.node")
-             sys.exit(1)
+        print("[!] FATAL: Could not import hive.node")
+        sys.exit(1)
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -122,7 +115,7 @@ def attack_pipeline():
     if res1["status"] != "delivered":
         log.error(f"[!] Init Sync Failed: {res1}")
         return
-    log.info(f"    [OK] Msg 1 Delivered. Chain hashes updated.")
+    log.info("    [OK] Msg 1 Delivered. Chain hashes updated.")
     
     # Capture State
     hash_a_1 = a.sessions[b.node_id].chain_hash

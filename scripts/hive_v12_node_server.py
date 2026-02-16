@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
-import datetime
-import argparse
 import sys
 from pathlib import Path
-from typing import Optional, Dict
 
 # Add repo root to sys.path (parent of idre_clean folder)
 # This assumes the script is located at .../idre_clean/scripts/hive_v12_node_server.py
@@ -11,16 +8,7 @@ _REPO_PARENT = str(Path(__file__).resolve().parent.parent.parent)
 if _REPO_PARENT not in sys.path:
     sys.path.insert(0, _REPO_PARENT)
 
-from idre_clean.hive.node import FieldBoundNode
 from idre_clean.hive.server import _ThreadedHTTPServer, Handler, TokenBucketLimiter
-from idre_clean.hive.utils import (
-    _now_ms,
-    DEFAULT_MAX_PAYLOAD_INTS, DEFAULT_MAX_BODY_BYTES, 
-    DEFAULT_CHALLENGE_TTL_MS, DEFAULT_SKEW_MS, 
-    DEFAULT_MAX_TTL_MS, DEFAULT_DEFAULT_TTL_MS, 
-    DEFAULT_MAX_PENDING_CHALLENGES, DEFAULT_MAX_CT_LEN
-)
-from idre_clean.core.vocab_codec import Vocab, load_vocab_registry
 
 # Defaults
 DEFAULT_RL_CHALLENGE_RPS = 5.0

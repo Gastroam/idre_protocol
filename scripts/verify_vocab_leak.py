@@ -8,59 +8,50 @@ she CANNOT decode the message content without the Vocabulary file.
 Steps:
 1. Create a dummy vocab file (vocab_small.json) for speed.
 2. Launch Node A and Node B with `--content-codec vocab --vocab-file vocab_small.json`.
-3. Perform handshake.
+3. Perform mutual handshake (A<->B) so both can send.
 4. Node A sends a message.
-5. Eve (with leaked seed) decrypts the packet -> Gets Raw IDs.
-6. Eve tries to decoding -> Fails (simulated).
+5. Eve (with leaked seed) decrypts the packet -> Gets raw bytes.
+6. Eve can see an `IDREVOC1` blob but cannot map IDs -> text without the vocab file.
 """
 
 import sys
 import os
 import time
 import subprocess
-import signal
 import json
 import urllib.request
 import urllib.error
 import hashlib
+import hmac
 import random
-from typing import Dict, Any, Optional, List
+import struct
+from pathlib import Path
+from typing import Dict, Any, Tuple
 
 # --- Path Setup ---
-_REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+_REPO_PARENT = _REPO_ROOT.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+if str(_REPO_PARENT) not in sys.path:
+    sys.path.insert(0, str(_REPO_PARENT))
 
-# Import FieldBoundNode for Eve
 try:
-    from scripts.hive_v12_node_server import FieldBoundNode, canonical_json
+    from idre_clean.hive.node import FieldBoundNode
+    from idre_clean.hive.utils import canonical_json
+    from idre_clean.core.vocab_codec import Vocab
 except ImportError:
-    try:
-        from hive_v12_node_server import FieldBoundNode, canonical_json
-    except ImportError:
-        # Fallback to direct library import if script wrapper not found
-        try:
-            from idre_clean.hive.node import FieldBoundNode
-            from idre_clean.hive.utils import canonical_json
-        except ImportError:
-            try:
-                from hive.node import FieldBoundNode
-                from hive.utils import canonical_json
-            except ImportError:
-                print("[!] Failed to import FieldBoundNode. Ensure you are running from repo root.")
-                sys.exit(1)
+    from hive.node import FieldBoundNode
+    from hive.utils import canonical_json
+    from core.vocab_codec import Vocab
 
 # --- Helpers ---
-
-def get_free_port(start=8900):
-    # Simple incrementer for this demo script
-    return start
 
 def wait_for_port(port, timeout=30):
     start = time.time()
     while time.time() - start < timeout:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/hive/v12/hello", timeout=1) as r:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=1) as r:
                 if r.getcode() == 200:
                     return True
         except:
@@ -82,43 +73,71 @@ def _post(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         print(f"[!] Request Error: {e}")
         raise
 
+def _dummy_vocab() -> Vocab:
+    # Minimal positional vocab to satisfy IDRE v3 constructor requirements.
+    toks = ["<pad>", "<unk>", "a", "b", "c", " ", ".", ","]
+    t2i = {t: i for i, t in enumerate(toks)}
+    return Vocab(tokens=toks, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={" ": [1], ".": [1], ",": [1], "a": [1], "b": [1], "c": [1]})
+
+def hmac_genesis(seed: int, session_id: str) -> bytes:
+    # Must match hive/node.py process_verify_req genesis derivation.
+    return hmac.new(str(int(seed)).encode(), f"GENESIS:{session_id}".encode(), hashlib.sha256).digest()
+
+def _mutual_handshake(*, a_url: str, a_id: str, b_url: str, b_id: str, session_id: str, ephemeral_salt: int) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    # A -> B
+    c1 = _post(b_url + "/hive/v12/challenge", {"peer_id": a_id})
+    v1 = _post(a_url + "/hive/v12/verify_req/create", {"session_id": session_id, "ephemeral_salt": int(ephemeral_salt), "challenge": c1["challenge"]})
+    msg1 = v1["msg"]
+    _post(b_url + "/hive/v12/verify_req/process", {"peer_id": a_id, "msg": msg1, "ttl_s": 60})
+
+    # B -> A
+    c2 = _post(a_url + "/hive/v12/challenge", {"peer_id": b_id})
+    v2 = _post(b_url + "/hive/v12/verify_req/create", {"session_id": session_id, "ephemeral_salt": int(ephemeral_salt), "challenge": c2["challenge"]})
+    msg2 = v2["msg"]
+    _post(a_url + "/hive/v12/verify_req/process", {"peer_id": b_id, "msg": msg2, "ttl_s": 60})
+
+    return msg1, msg2
+
 # --- Eve Logic ---
 
 class EveDecryptor:
     def __init__(self, seed: int = 7245):
-        self.node = None
-        self.known_sessions: Dict[str, int] = {}
-        if FieldBoundNode:
-            # Eve has the seed, but NO vocab (or at least, she doesn't use it for raw decryption)
-            # Note: FieldBoundNode constructor might require a vocab if we set content_codec="vocab".
-            # BUT: Eve wants to see RAW IDs.
-            # If we set content_codec="utf8", decrypt_message returns bytes.
-            # If we set content_codec="vocab", it requires a vocab.
-            # We will use "utf8" mode for Eve's *decryption* engine efficiently,
-            # trusting that the packet payload is encrypted bytes that HAPPEN to be vocab IDs.
-            # Actually, FieldBoundNode.decrypt_bytes returns the decrypted blob.
-            # If the sender used Vocab, that blob IS the sequence of IDs (packed or otherwise).
-            
-            self.node = FieldBoundNode(
-                node_id="EVE_LEAK", seed=seed,
-                anchor_seeds=(7245,), anchor_weight=80.0,
-                n_angles=72, scan_resolution=50, threshold=0.5,
-                planes=4, tau_frac=0.55,
-                print_deliveries=False, print_events=False,
-                freeze_field=True, backend="frozen",
-                content_codec="utf8" # Eve operates at wire layer
-            )
+        self.seed = int(seed)
+        self.node = FieldBoundNode(
+            node_id="EVE_LEAK",
+            seed=self.seed,
+            anchor_seeds=(7245,),
+            anchor_weight=80.0,
+            n_angles=72,
+            scan_resolution=50,
+            threshold=0.5,
+            planes=4,
+            tau_frac=0.55,
+            print_deliveries=False,
+            print_events=False,
+            freeze_field=True,
+            backend="frozen",
+            content_codec="utf8",  # Eve operates at wire layer.
+            vocab=_dummy_vocab(),
+        )
+        self.known_sessions: Dict[str, Dict[str, Any]] = {}
 
     def sniff_handshake(self, wire_msg: Dict[str, Any]):
         if wire_msg.get("type") == "VERIFY_REQ":
             sid = wire_msg.get("session_id")
             esalt = wire_msg.get("ephemeral_salt")
             if sid and esalt is not None:
-                self.known_sessions[sid] = int(esalt)
-                print(f"    [Eve] Sniffed Handshake: SID={sid[:8]}... Salt={esalt}")
+                # Node derives genesis chain hash from (seed, session_id); Eve can compute it too with leaked seed.
+                genesis = hmac_genesis(self.seed, str(sid))
+                try:
+                    from idre_clean.hive.ratchet import kdf_int
+                except Exception:
+                    from hive.ratchet import kdf_int
+                ratchet_key = kdf_int(int(self.seed), f"INIT::{sid}")
+                self.known_sessions[str(sid)] = {"ephemeral_salt": int(esalt), "chain_hash": genesis, "next_seq": 2, "ratchet_key": int(ratchet_key)}
+                print(f"    [Eve] Sniffed Handshake: SID={str(sid)[:8]}... Salt={int(esalt)}")
 
     def sniff_and_decrypt(self, wire_msg: Dict[str, Any]) -> str:
-        if not self.node: return "[No Lib]"
         # Check if handshake
         if wire_msg.get("type") == "VERIFY_REQ":
             self.sniff_handshake(wire_msg)
@@ -127,14 +146,20 @@ class EveDecryptor:
         if wire_msg.get("type") != "DATA": return "[Not DATA]"
 
         payload = wire_msg.get("payload")
-        sid = wire_msg.get("session_id")
-        nonce = wire_msg.get("nonce")
+        sid = str(wire_msg.get("session_id", ""))
+        nonce = int(wire_msg.get("nonce", 0) or 0)
+        if not isinstance(payload, list) or not sid or nonce <= 0:
+            return "[Bad Packet]"
         
         if sid not in self.known_sessions:
             return f"[Unknown Session: {sid[:8]}..]"
-        esalt = self.known_sessions[sid]
+        st = self.known_sessions[sid]
+        esalt = int(st["ephemeral_salt"])
+        chain_hash = bytes(st["chain_hash"])
+        next_seq = int(st["next_seq"])
+        ratchet_key = int(st["ratchet_key"])
         
-        # AAD reconstruction
+        # AAD reconstruction (must match hive/node.py)
         try:
             header = {
                 "type": str(wire_msg.get("type")),
@@ -148,32 +173,41 @@ class EveDecryptor:
                 "hop_count": int(wire_msg.get("hop_count", 0)),
                 "max_hops": int(wire_msg.get("max_hops", 0)),
             }
-            aad = canonical_json(header)
         except Exception as e:
             return f"[AAD Failed: {e}]"
 
-        try:
-            decrypted = self.node.decrypt_bytes(
-                payload, session_id=sid, nonce=int(nonce), 
-                ephemeral_salt=int(esalt), aad=aad
-            )
-            if decrypted is not None:
-                # Decrypted blob from "vocab" codec is an IDREVOC1 blob.
-                # It starts with MAGIC8.
-                # Eve can see the BYTES. But converting them to "Meaning" requires the mapping.
-                
-                raw_bytes = list(decrypted)
-                
-                # Check for magic header
-                magic = bytes(raw_bytes[:8])
-                if magic == b"IDREVOC1":
-                    return f"SUCCESS_DECRYPT: Found IDREVOC1 Header! Payload Size: {len(raw_bytes)} bytes. Content is OBFUSCATED IDs."
-                else:
-                    return f"RAW_DECRYPT: {raw_bytes[:20]}... (Not IDREVOC1?)"
-            else:
-                return "[Decryption Failed]"
-        except Exception as e:
-            return f"[Error: {e}]"
+        aad_base = canonical_json(header)
+        # Sender increments out_seq before encrypting, so first post-handshake DATA is typically seq=2.
+        # Brute force a small window to avoid relying on internal counters.
+        for seq in range(max(1, next_seq - 1), next_seq + 4):
+            aad = aad_base + chain_hash + struct.pack(">Q", int(seq))
+            try:
+                pt, _reason, _acks, _tag = self.node.decrypt_bytes(
+                    payload,
+                    session_id=sid,
+                    nonce=int(nonce),
+                    ephemeral_salt=int(esalt),
+                    aad=aad,
+                    ratchet_key=int(ratchet_key),
+                )
+            except Exception as e:
+                return f"[Error: {e}]"
+
+            if pt is None:
+                continue
+
+            # Keep Eve's chain state aligned for follow-on packets.
+            payload_bytes = bytes(int(x) & 0xFF for x in payload)
+            chain_hash = hashlib.sha256(chain_hash + payload_bytes).digest()
+            st["chain_hash"] = chain_hash
+            st["next_seq"] = int(seq) + 1
+
+            magic = bytes(pt[:8])
+            if magic == b"IDREVOC1":
+                return f"SUCCESS_DECRYPT: Found IDREVOC1 Header! Payload Size: {len(pt)} bytes. Content is OBFUSCATED IDs."
+            return f"RAW_DECRYPT: {list(pt[:20])}... (Not IDREVOC1?)"
+
+        return "[Decryption Failed: MAC mismatch / out of window]"
 
     # --- Main ---
 
@@ -187,7 +221,7 @@ def main():
     
     p_a = 8895
     p_b = 8896
-    vocab_path = os.path.join(_REPO_ROOT, "vocab_small.json")
+    vocab_path = str(_REPO_ROOT / "vocab_small.json")
     
     proc_a = None
     proc_b = None
@@ -211,8 +245,8 @@ def main():
         
         print(f"[*] Launching Node A (:{p_a}) and Node B (:{p_b}) ...")
         # Redirect stdout/stderr to capture errors
-        proc_a = subprocess.Popen(cmd_base + ["--port", str(p_a), "--node-id", "A"] + common_args, cwd=root_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        proc_b = subprocess.Popen(cmd_base + ["--port", str(p_b), "--node-id", "B"] + common_args, cwd=root_dir, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc_a = subprocess.Popen(cmd_base + ["--port", str(p_a), "--node-id", "A"] + common_args, cwd=str(_REPO_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc_b = subprocess.Popen(cmd_base + ["--port", str(p_b), "--node-id", "B"] + common_args, cwd=str(_REPO_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
         # Non-blocking read helper
         try:
@@ -233,29 +267,21 @@ def main():
 
         print("[OK] Nodes running.")
         
-        # 3. Handshake
+        # 3. Mutual Handshake (Eve Sniffing)
         a_url = f"http://127.0.0.1:{p_a}"
         b_url = f"http://127.0.0.1:{p_b}"
         
         eve = EveDecryptor(seed=7245)
         
-        print("\n[*] Performing Handshake (Eve Sniffing)...")
+        print("\n[*] Performing Mutual Handshake (Eve Sniffing)...")
         sid = hashlib.sha256(os.urandom(32)).hexdigest()[:32]
         salt = random.getrandbits(31)
-        
-        c_resp = _post(b_url + "/hive/v12/challenge", {"peer_id": "A"})
-        chal = c_resp["challenge"]
-        
-        v_resp = _post(a_url + "/hive/v12/verify_req/create", {
-            "session_id": sid, "ephemeral_salt": salt, "challenge": chal
-        })
-        msg = v_resp["msg"]
-        
-        # EVE SNIFFS
-        eve.sniff_handshake(msg)
-        
-        _post(b_url + "/hive/v12/verify_req/process", {"peer_id": "A", "msg": msg, "ttl_s": 60})
-        print("    [OK] Handshake A->B complete.")
+        msg1, msg2 = _mutual_handshake(a_url=a_url, a_id="A", b_url=b_url, b_id="B", session_id=sid, ephemeral_salt=int(salt))
+
+        # Eve sees at least one VERIFY_REQ to learn session_id and ephemeral_salt.
+        eve.sniff_handshake(msg1)
+        eve.sniff_handshake(msg2)
+        print("    [OK] Handshake A<->B complete.")
         
         # 4. Same Sender Message
         print("\n[*] Sending 'Hello World' A->B ...")

@@ -14,8 +14,6 @@ import concurrent.futures
 import hashlib
 import json
 import os
-import random
-import socket
 import sys
 import threading
 import time

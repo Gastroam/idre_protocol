@@ -2,18 +2,15 @@ import json
 import threading
 import time
 from datetime import datetime, timezone
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import ThreadingMixIn
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 from .utils import _now_ms, DEFAULT_MAX_BODY_BYTES
-from .node import FieldBoundNode, DEFAULT_MAX_PAYLOAD_INTS
+from .node import FieldBoundNode
 
 from idre_clean.core.wire_bin import pack_receive_envelope, pack_wire_message, unpack_receive_envelope
-from idre_clean.core.vocab_codec import (
-    encode_text as vocab_encode_text,
-)
 
 @dataclass
 class _Bucket:
@@ -81,6 +78,14 @@ class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 class Handler(BaseHTTPRequestHandler):
     server_version = "HiveV12/0.1"
 
+    def _require_local(self) -> bool:
+        # Plaintext-bearing operator endpoints must be localhost-only.
+        ip = str(getattr(self, "client_address", ("", 0))[0])
+        if ip not in ("127.0.0.1", "::1"):
+            self.send_error(403, "internal_only")
+            return False
+        return True
+
     def _json(self, code: int, payload: Dict[str, Any], extra_headers: Optional[Dict[str, str]] = None):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(code)
@@ -114,7 +119,6 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            node: FieldBoundNode = self.server.node  # type: ignore[attr-defined]
             now_ms = int(_now_ms())
             self._json(
                 200,
@@ -152,9 +156,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/hive/v12/ingest_offline":
-            client_ip = self.client_address[0]
-            if client_ip not in ("127.0.0.1", "::1"):
-                self.send_error(403, "internal_only")
+            if not self._require_local():
                 return
             
             blob = raw 
@@ -167,6 +169,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/hive/v12/send_wire":
+            if not self._require_local():
+                return
             try:
                 data = json.loads(raw.decode("utf-8")) if raw else {}
             except Exception:
@@ -241,6 +245,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/hive/v12/verify_req/create":
+            if not self._require_local():
+                return
             try:
                 session_id = str(data.get("session_id", ""))
                 e_salt = int(data.get("ephemeral_salt", 0))
@@ -275,6 +281,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/hive/v12/debug/force_session":
+            if not self._require_local():
+                return
             peer_id = str(data.get("peer_id", ""))
             session_id = str(data.get("session_id", ""))
             ephemeral_salt = int(data.get("ephemeral_salt", 0))
@@ -292,6 +300,8 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/hive/v12/send":
+            if not self._require_local():
+                return
             dst = str(data.get("dst_node_id", ""))
             content = data.get("content")
             if not dst or not isinstance(content, str):
