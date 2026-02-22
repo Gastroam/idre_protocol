@@ -1,12 +1,18 @@
-# IDRE Clean Threat Model (v1.2+)
+# IDRE Threat Model (v2.4)
 
-This repo is a **research prototype**. This document is here to prevent accidental overclaims.
+This repo is a **research prototype**. This document prevents accidental overclaims.
+
+## Scope
+
+IDRE targets **sovereign, pre-provisioned networks** — military enclaves, embassy links, air-gapped meshes — where third-party trust (PKI, CAs) is unacceptable. It is **not** a replacement for TLS, Signal, or WireGuard on the public internet.
 
 ## Assets We Protect
 
-- **Payload confidentiality**: only peers with the same private physics (field state/config) can decrypt.
+- **Payload confidentiality**: only peers with the same Field Provisioning Bundle can decrypt.
 - **Integrity**: message/header tampering is detected (MAC over AAD + ciphertext).
-- **Replay resistance**: captured packets should not be accepted again (within the defined policy).
+- **Replay resistance**: captured packets are not accepted again (nonce window + chain hash).
+- **Metadata confidentiality** (optional): encrypted headers and rotating route tags hide `src/dst/session_id` from observers.
+- **Service stealth** (optional): Dark Mode Gatekeeper makes ports appear closed to scanners.
 
 ## Adversary Capabilities
 
@@ -14,45 +20,46 @@ This repo is a **research prototype**. This document is here to prevent accident
 - Active MITM: can drop, delay, replay, reorder, and mutate packets/headers.
 - Can run their own nodes with arbitrary seeds/configs.
 - Can attempt resource exhaustion (oversize bodies/payloads, rapid requests).
+- Algorithm knowledge: knows the full IDRE specification and source code.
+- Model access: possesses base model weights (not the private Field Provisioning Bundle).
 
-## Security Assumptions (Non-Negotiable)
+## Security Assumptions
 
-- **Private physics is secret**.
-  - In practice this means high-entropy secret material exists and is provisioned securely.
-  - If an attacker learns your physics, confidentiality is lost (symmetric-key reality).
+- **The Field Provisioning Bundle is secret.**
+  - Comprises: seed, topology seed, pepper, vocabulary. All must remain confidential.
+  - If an attacker learns the full bundle, confidentiality is lost (symmetric-key reality).
+  - Partial compromise (any single component) yields noise, not plaintext (see §4.1 of the paper).
 - **Clocks are "trusted enough"** when using timestamp enforcement.
-  - If clocks are wrong, freshness decisions will reject valid traffic or accept stale traffic.
+- **Provisioning channel is secure.** The security of out-of-band provisioning is outside IDRE's scope.
 
-## Non-Goals
+## What Protects What
 
-- Traffic analysis resistance is not provided by the core IDRE wire format: metadata (`src/dst/...`) is visible.
-  - If you need a global passive observer story, you must add a separate metadata layer (fixed-size constant-rate cells)
-    and an anonymity network (Tor/I2P). See `scripts/idre_gateway.py` and `README.md`.
-- Public-key infrastructure replacement: IDRE is not a CA system.
-- Formal proofs / standards compliance: not yet.
-- Post-compromise security / forward secrecy: not claimed.
+| Layer | Mechanism | Protection |
+|:---|:---|:---|
+| Handshake (`VERIFY_REQ`) | One-time challenge + field proof | Same-field authentication, session fixation prevention |
+| Data plane | HMAC-SHA256(mac_key, aad ∥ ct) | Integrity + authenticity |
+| Freshness | `created_at_ms` / `expires_at_ms` in AAD | Stale packet rejection |
+| Anti-replay | Per-session nonce window (checked after auth) | Replay rejection |
+| Anti-rollback | Epoch Anchor chain hash | Intra-session tamper/fork detection |
+| Weight Hiding | `HMAC(pepper, raw_bits)` | Gradient-descent resistance |
+| Encrypted Headers | XOR stream cipher on header dict | Metadata confidentiality |
+| Route Tags | `SHA256("ROUTE/" ∥ B ∥ epoch)[:16]` | Unlinkable cross-epoch routing |
+| Dark Mode Gatekeeper | SPA knock + per-IP rate limiting | Service stealth + DoS mitigation |
+| Ouroboros Ratchet | Consensus-triggered key rotation | Forward secrecy (per epoch) |
+| Ghost Topology | Orthonormal fold matrix | Independent geometric obfuscation |
+| Neural Codec | Session-bound Hebbian compression | Traffic shape obfuscation |
+| Vocab binding | `vocab_id = SHA256(tokens)` | Network domain separation |
 
-## What Protects What (In This Repo)
+## Excluded from Adversary Model
 
-- **Handshake (VERIFY_REQ)**: proves "same field" and establishes a session.
-  - v1.2+ adds a **one-time challenge** to prevent VERIFY_REQ replay / session fixation after restart.
-- **DATA plane**:
-  - `created_at_ms` / `expires_at_ms` are authenticated (in AAD) and enforced for freshness.
-  - Replay window is checked after authentication.
-  - **Start-of-Epoch Anchor**: Chained hashing (`prev_hash`) prevents message tampering/rollback within a session.
-  - **Weight Hiding**: `HMAC(pepper, raw_bits)` prevents gradient descent attacks on the underlying lattice weights.
-- **Offline**:
-  - `IDRE-OFFLINE/1` sealed letter is sessionless, time-bounded, and integrity-protected.
-  - IDRE-Silence is transport only; it does not add security.
-- **Vocab/token payloads (application layer)**:
-  - Tokenization is deterministic and authenticated implicitly (it sits inside the encrypted plaintext bytes).
-  - A positional vocab mismatch is detected via `vocab_id` and rejected (`wrong_vocab`).
-  - Strict mode (`--no-vocab-allow-literals`) removes the out-of-vocab fallback path by policy.
+- **Side-channel attacks**: timing, power, electromagnetic analysis. Implementation is in Python (not constant-time). Protocol-level analysis only.
+- **Quantum adversary** (post-Grover): symmetric components (HMAC-SHA256) are affected by Grover's quadratic speedup. With ≥256-bit equivalent entropy in the bundle, this remains infeasible.
 
-## Known Hard Problems (Roadmap Items)
+## Known Hard Problems (Future Work)
 
-- Auditing the IDRE primitive as a cipher (cryptanalysis, reduction arguments, side-channels).
-- Key provisioning and rotation for "private physics".
-- DoS hardening (rate limiting, admission control).
-- Forward secrecy (requires additional mechanism; not solved by timestamps).
-- Side channels and operational leakage (logs, timing, resource usage).
+- Independent cryptanalysis of the IDRE stream cipher (Permute→XOR).
+- Standard-model proof (currently ROM only).
+- Formal verification (Tamarin/ProVerif).
+- Key provisioning UX and rotation workflows.
+- Side-channel hardening for non-Python implementations.
+- Transport layer security (IDRE-Silence robustness).

@@ -779,6 +779,7 @@ class FieldBoundNode:
         *,
         override_created_at_ms: Optional[int] = None,
         override_expires_at_ms: Optional[int] = None,
+        encrypt_headers: bool = False,
     ) -> Dict[str, Any]:
         dst = str(dst_node_id)
         if dst not in self.timelines or not self.timelines[dst]:
@@ -877,6 +878,22 @@ class FieldBoundNode:
             plen = len(payload) if isinstance(payload, list) else -1
             print(f"[{self.node_id}] SENT dst={dst} nonce={nonce} payload_len={plen} seq={sess.out_seq}")
         header["payload"] = payload
+
+        # Encrypted header mode: wrap the plaintext header in an opaque blob
+        if encrypt_headers:
+            from .protocol import encrypt_header, derive_route_tag
+            bits = self.fingerprint_bits(self.seed, mutate=False)
+            epoch = int(time.time()) // 60
+            enc_hdr = encrypt_header(header, bits, sess.session_id, int(nonce))
+            route_tag = derive_route_tag(bits, epoch)
+            return {
+                "route_tag": route_tag.hex(),
+                "encrypted_header": enc_hdr.hex(),
+                "payload": payload,
+                "session_id": sess.session_id,  # needed for header decryption
+                "nonce": int(nonce),             # needed for header decryption
+            }
+
         return header
 
     def receive(self, msg: Dict[str, Any], prev_hop_id: str) -> Dict[str, Any]:
@@ -887,6 +904,25 @@ class FieldBoundNode:
                 if self.print_events:
                     print(f"[{self.node_id}] RECV reject from={prev} reason=unknown_session")
                 return {"status": "reject", "reason": "unknown_session"}
+
+        # Detect encrypted header mode
+        if "encrypted_header" in msg and "route_tag" in msg:
+            from .protocol import decrypt_header
+            outer_payload = msg.get("payload")  # save before overwriting
+            bits = self.fingerprint_bits(self.seed, mutate=False)
+            enc_bytes = bytes.fromhex(str(msg["encrypted_header"]))
+            sid_hint = str(msg.get("session_id", ""))
+            nonce_hint = int(msg.get("nonce", 0))
+            ok, decrypted_hdr = decrypt_header(enc_bytes, bits, sid_hint, nonce_hint)
+            if not ok:
+                if self.print_events:
+                    print(f"[{self.node_id}] RECV reject from={prev} reason=header_decrypt_failed")
+                return {"status": "reject", "reason": "header_decrypt_failed"}
+            # The encrypted header includes the full dict with payload key,
+            # but the payload list itself was carried in the outer message for efficiency.
+            msg = dict(decrypted_hdr)
+            if outer_payload is not None and isinstance(outer_payload, list):
+                msg["payload"] = outer_payload
 
         if str(msg.get("field_profile_id", "")) != str(getattr(self, "field_profile_id", "")):
             if self.print_events:

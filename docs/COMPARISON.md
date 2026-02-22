@@ -1,50 +1,64 @@
-# IDRE Protocol Comparison: Standing Against Modern Threats
+# IDRE Protocol Comparison (v2.4)
 
-This document compares **IDRE (Identity-Resolving Encryption)** against industry standards (**TLS 1.3**, **WireGuard**, **Signal**) in the context of emerging threats like Quantum Computing and AI-driven Cryptanalysis.
+How IDRE compares to TLS 1.3, WireGuard, and Signal — and where it doesn't compete.
 
-## Executive Summary
+## Scope Note
 
-| Feature | **IDRE (v1.2 Hardened)** | **TLS 1.3** | **WireGuard** | **Signal (Double Ratchet)** |
-| :--- | :--- | :--- | :--- | :--- |
-| **Primary Hardness** | **Lattice/Field (Symmetric)** | ECC / RSA (Asymmetric) | ECC (Curve25519) | ECC (X25519) |
-| **Post-Quantum** | **Native** (assuming secret seed) | Vulnerable (Shor's Algo) | Vulnerable | Vulnerable |
-| **Forward Secrecy** | **Session-Bound** (Rolling Hash) | **Perfect** (Ephemeral DH) | **Perfect** (Key Rotation) | **Perfect** (Ratchet) |
-| **Traffic Analysis** | **Neural Codec** (Pattern Hiding) | Content Encrypted, Size Visible | Padding Aware | Padding Aware |
-| **DoS Resilience** | **Replay-Window + HMAC** | Client Puzzles / Cookies | Cookie Reply | various |
-| **Authority** | **Sovereign** (Private Physics) | centralized (CA System) | Peer-to-Peer | Centralized Directory |
+IDRE targets **sovereign, pre-provisioned networks** where out-of-band key provisioning is acceptable and third-party trust (PKI/CAs) is not. It does **not** solve key distribution over untrusted networks. The comparisons below are fair only within IDRE's target deployment environment.
 
----
+## Feature Matrix
 
-## 1. The Quantum Threat (Harvest Now, Decrypt Later)
-*   **The Threat**: Attackers record traffic today to decrypt later using a Quantum Computer (violating RSA/ECC).
-*   **Standard Protocols**: TLS 1.3 and WireGuard rely on Diffie-Hellman (DHE) for key exchange. This is vulnerable to Shor's Algorithm. PQC (Post-Quantum Crypto) standards (Kyber, etc.) are being drafted but add overhead.
-*   **IDRE**: IDRE does *not* transmit keys. It relies on pre-shared "Private Physics" (the seed/weights). If the seed is high-entropy (256-bit+) and kept secret, IDRE functions like a massive **Symmetric Key** system. Symmetric crypto is generally resistant to Quantum attacks (Grover's algorithm only halves the security bit-depth, so AES-256 becomes AES-128 equivalent).
-    *   **Verdict**: **IDRE is inherently Post-Quantum** *if* key distribution is solved out-of-band.
+| Feature | **IDRE v2.4** | **TLS 1.3** | **WireGuard** | **Signal** |
+|:---|:---|:---|:---|:---|
+| **Trust Model** | Sovereign (out-of-band provisioning) | Centralized (CA system) | Peer-to-peer (PSK or PKI) | Centralized directory |
+| **Key Exchange** | None (pre-provisioned bundle) | Ephemeral DH / PSK | Static + Ephemeral DH | X3DH + Double Ratchet |
+| **Symmetric Cipher** | SHA256-CTR + Permute→XOR | AES-GCM / ChaCha20-Poly1305 | ChaCha20-Poly1305 | AES-CBC / ChaCha20 |
+| **Authentication** | HMAC-SHA256 | AEAD (built-in) | Poly1305 | HMAC-SHA256 |
+| **Post-Quantum** | Native (no asymmetric ops) | Vulnerable (Shor's) | Vulnerable | Vulnerable |
+| **Forward Secrecy** | Ouroboros Ratchet (event-triggered) | Perfect (ephemeral DH) | Perfect (key rotation) | Perfect (Double Ratchet) |
+| **Metadata Protection** | Encrypted headers + rotating route tags | None (SNI visible) | Minimal | Sealed sender (opt-in) |
+| **Traffic Analysis** | Neural Codec + padding | Content encrypted, size visible | Fixed-size padding | Padding |
+| **DoS Mitigation** | Dark Mode SPA + per-IP rate limiting | Client puzzles / cookies | Cookie reply | Various |
+| **Partial Compromise** | Graceful degradation (multi-layer) | Full compromise | Full compromise | Ratchet limits damage |
+| **Provisioning Complexity** | High (multi-component bundle) | Low (certificate + key) | Low (keypair) | Low (registration) |
+| **Maturity** | Research prototype | RFC 8446 (battle-tested) | RFC (audited) | Peer-reviewed |
 
-## 2. AI Cryptanalysis & Model Inversion
-*   **The Threat**: Using Gradient Descent or ML models to "learn" the internal state of a crypto system by observing I/O pairs.
-*   **Standard Protocols**: Standard primitives (AES, ChaCha20) are highly non-linear and seemingly resistant to current ML attacks.
-*   **IDRE**: Uses a "Lattice/Field" projection which *can* be linear.
-    *   **Vulnerability**: A raw projection is solvable via Linear Regression or Gradient Descent.
-    *   **Mitigation (v1.2)**: We implemented **"Pepper"** (`HMAC(pepper, raw_bits)`). This introduces a non-differentiable Trapdoor Function. An AI cannot backpropagate through the HMAC to find the lattice weights.
-    *   **Verdict**: **Hardened**. Without "Pepper", IDRE was weak to AI. With "Pepper", it matches standard symmetric hardness.
+## Detailed Comparison
 
-## 3. Forward Secrecy & Rollback
-*   **The Threat**: If a key is stolen, can past traffic be decrypted? Can an attacker replay old messages?
-*   **Standard Protocols**: Signal's *Double Ratchet* is the gold standard, healing even after key compromise.
-*   **IDRE**:
-    *   Uses **Epoch Anchor** (Rolling Chain Hash).
-    *   **Forward Secrecy**: If the *current* session state is stolen, *future* messages are compromised, but deriving *past* keys requires inverting the SHA-256 chain (hard).
-    *   **Weakness**: If the *Root Seed* is stolen, **ALL** historical traffic is compromised (unlike DHE which generates ephemeral keys).
-    *   **Verdict**: **Weaker than Standards**. IDRE relies on the "Root Secret" being absolutely secure (like a One-Time Pad model). Manual Rotation is required for True PFS.
+### 1. The Quantum Threat (Harvest Now, Decrypt Later)
 
-## 4. Metadata & Traffic Analysis
-*   **The Threat**: Inferring activity based on packet sizes and timing (e.g., "watching a movie" vs "chatting").
-*   **Standard Protocols**: TLS encrypts lengths but usage patterns usually leak.
-*   **IDRE**:
-    *   **Neural Codec**: Compresses frequent distinct patterns into opcodes.
-    *   **Effect**: A repeated "Hello" becomes 1 byte, then 0 bytes (implicit). This flattens the statistical distribution of traffic, making "fingerprinting" harder for an observer.
-    *   **Verdict**: **Novel Defense**. While not a "padding" strategy, the semantic compression alters the traffic shape dynamically, confusing standard counters.
+- **TLS/WireGuard/Signal**: Rely on elliptic curve or RSA key exchange — vulnerable to Shor's algorithm. PQC migration (Kyber, ML-KEM) is underway but adds overhead and is not yet widely deployed.
+- **IDRE**: No asymmetric operations. No keys on the wire. Security reduces to symmetric primitives (SHA256, HMAC-SHA256). Grover's algorithm halves effective bit-depth; with ≥256-bit bundle entropy, this remains infeasible. **IDRE is post-quantum by construction.**
+
+### 2. AI/ML Cryptanalysis
+
+- **Standard ciphers**: AES and ChaCha20 are highly non-linear and resistant to current ML attacks.
+- **IDRE**: The raw geometric scan is a linear projection — vulnerable to gradient descent. The **pepper** (§2.2) applies an HMAC trapdoor making the derivation non-differentiable. Post-pepper, IDRE matches standard symmetric hardness.
+
+### 3. Forward Secrecy
+
+- **TLS/WireGuard/Signal**: Perfect forward secrecy via ephemeral key exchange. Compromise of long-term key does not expose past sessions.
+- **IDRE**: Forward secrecy is provided by the **Ouroboros Ratchet** (§3.9), which rotates keys on external consensus events. This is weaker than ephemeral DH — if the root bundle is compromised and no ratchet event has occurred, past traffic is exposed. **Trade-off**: IDRE avoids online key exchange (and its metadata leakage) at the cost of weaker PFS.
+
+### 4. Metadata Protection
+
+- **TLS**: SNI, certificate, and connection metadata are visible. ESNI/ECH are in draft.
+- **WireGuard**: Minimal metadata leakage; IP headers visible.
+- **Signal**: Sealed sender hides sender identity (opt-in).
+- **IDRE**: **Encrypted headers** hide all protocol metadata (`src/dst/session_id/nonce/timestamps`). **Rotating route tags** provide unlinkable external routing identifiers that change every epoch. **Dark Mode Gatekeeper** makes the service port invisible to scanners.
+
+### 5. Partial Compromise Resilience
+
+- **Standard protocols**: Compromise of the single key/certificate exposes everything.
+- **IDRE**: The Field Provisioning Bundle has 5 independent dimensions (seed, topology, pepper, vocabulary, session state). Compromising any single dimension without the others yields noise. This **graceful degradation** is a structural property no single-key protocol can match.
+
+## Where IDRE Does Not Compete
+
+- **Public internet**: IDRE requires out-of-band provisioning. It cannot replace TLS for web traffic.
+- **Open federation**: IDRE networks are closed by design. No equivalent to certificate transparency or key directory.
+- **Maturity**: IDRE is a research prototype with 55 tests. TLS has decades of cryptanalysis, formal proofs, and real-world deployment.
+- **Ease of deployment**: IDRE's multi-component provisioning is operationally heavier than generating a keypair.
 
 ## Summary
-IDRE trades **Key Management ease** (DHE/PKI) for **Quantum Resistance** and **Sovereign Control**. It is highly specialized for "Dark Systems" where pre-sharing keys is acceptable to avoid the fragility of public key math in a post-quantum world.
+
+IDRE trades **provisioning simplicity** for **quantum resistance**, **metadata protection**, **partial-compromise resilience**, and **sovereign control**. It is purpose-built for closed, high-security networks where pre-provisioning is acceptable and third-party trust is not.

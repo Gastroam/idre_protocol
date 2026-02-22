@@ -88,7 +88,7 @@ class CodecState:
         # Dictionaries
         self.active_dict: Dict[int, bytes] = {} # ID -> Data
         self.reverse_dict: Dict[bytes, int] = {} # Data -> ID
-        self.pending_dict: Dict[int, bytes] = {} # ID -> Data (Proposed but not ACKed)
+        self.pending_dict: Dict[int, bytes] = {} # ID -> Data 
         
         # Hebbian stats
         self.obs_counts: Dict[bytes, int] = {}

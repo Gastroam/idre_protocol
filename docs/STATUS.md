@@ -6,7 +6,6 @@ This document is intentionally blunt. It is here to keep reviewers aligned on wh
 
 - Provide a minimal, reproducible reference implementation of **IDRE/Hive v1.2** primitives + wire framing.
 - Provide a black-box adversary harness for regression testing.
-- Provide an **offline transport** (IDRE-Silence) that can carry already-secured IDRE bytes through audio.
 - Provide an optional **vocab/token codec** to deterministically compress text into token indices (no LLM dependency).
 
 ## Current State (What Works)
@@ -18,28 +17,30 @@ This document is intentionally blunt. It is here to keep reviewers aligned on wh
 - **Replay rejection**: per-session nonce window; replay checked *after* authentication.
 - **Noise-tolerant payload framing**: bytes appended after `[ct][tag]` are ignored by design.
 - **Vocab/token payloads** (optional): deterministic text encoding with vocab mismatch detection (`wrong_vocab`).
-- **Offline sealed letter** (`IDRE-OFFLINE/1`): sessionless, time-bounded, MAC'd envelope carried via audio.
-- **IDRE-Silence transport**: bytes <-> audio with CRC32 framing and optional bit repetition FEC (prefix-checked in tooling).
+- **Offline sealed letter** (`IDRE-OFFLINE/1`): sessionless, time-bounded, MAC'd envelope.
 - **Neural Payload Compression**: Session-bound learning codec (`NeuralCodec`) for bandwidth efficiency.
 - **Weight Hiding**: Secret `pepper` prevents gradient descent seed recovery.
 - **Anti-Rollback**: Hash chaining (`Epoch Anchor`) prevents intra-session replay/forking.
+- **Ghost Topology**: Deterministic vector-space folding via orthonormal rotation matrix.
+- **Dark Mode Gatekeeper (SPA)**: UDP proxy with Single Packet Authorization — drops all traffic by default, validates cryptographic knocks, per-IP rate limiting before crypto.
+- **Encrypted Headers + Rotating Route Tags**: Header encryption hides `src/dst/session_id` from observers; 16-byte route tags rotate every epoch for unlinkable routing.
+- **Ouroboros Ratchet**: Consensus-triggered key rotation for forward secrecy tied to external finality events.
+- **55 passing tests** (35 core + 10 dark mode + 10 encrypted headers).
 
 ## Known Limitations / Gaps
 
 - **Not audited / not standardized crypto**: this is a research prototype until independently reviewed.
-- **Key distribution is out of scope**: security depends on the secrecy of the shared field (seed/weights/config).
-- **No forward secrecy claim**: compromise of the field state compromises past/future traffic in this model.
-- **Core metadata is plaintext**: `src/dst/session_id/...` are visible on the wire.
-  - If you need traffic-analysis resistance, use the optional gateway layer (`scripts/idre_gateway.py`) with fixed-size
-    constant-rate cells and run it through Tor/I2P tunnels. This is a separate layer, not "free" from IDRE itself.
-- **DoS surface exists**: like any network protocol, endpoints can be resource-targeted without rate limiting.
-- **IDRE-Silence is not a hostile-channel modem** (yet): robustness is good under resampling/filters/gain,
-  but timing jitter and dropouts can break decode without stronger synchronization/coding.
-- **Offline decode performance**: long WAVs can take significant CPU time to decode (pure Python + numpy).
-  - This is acceptable for lab/offline workflows; optimizing decode is a future task.
+- **Key distribution is out of scope**: security depends on the secrecy of the Field Provisioning Bundle (seed/topology/pepper/vocabulary).
+- **Forward secrecy**: limited to Ouroboros Ratchet (requires external consensus events). No ephemeral DH.
+- **Side-channel analysis**: excluded from adversary model. Implementation uses Python (not constant-time).
+- **Transport layer**: IDRE-Silence (audio transport) is implemented but excluded from this release; planned for future publication.
+- **Float determinism edge cases**: threshold binarization provides margin but deployment-specific calibration is recommended for cross-architecture use.
 
-## Recent Security Fixes
+## Recent Security Additions (v2.4)
 
+- **Dark Mode Gatekeeper**: SPA knock authentication, per-IP token-bucket rate limiting (before crypto), allowlist with TTL.
+- **Encrypted Headers**: full header encryption with XOR stream cipher, rotating route tags.
+- **Empirical entropy analysis**: 229-bit min-entropy (post-pepper) validated across 100 seeds.
 - `VERIFY_REQ` now authenticates `session_id` and `ephemeral_salt` (prevents salt/header tamper DoS).
 - Replay window update moved to happen only after authentication (prevents window-filling attacks).
 - Offline sealed letter payload framing uses a u32 ciphertext-length prefix (prevents truncation/ambiguity).
