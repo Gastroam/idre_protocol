@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
+# transports/ is excluded from the public repository
+pytest.importorskip("idre_clean.transports.idre_silence")
 from idre_clean.transports.idre_silence import IDRESilenceProtocol
 
 

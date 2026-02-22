@@ -4,7 +4,6 @@ import time
 import copy
 import sys
 from pathlib import Path
-from typing import List
 
 # Fix Import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,13 +20,11 @@ try:
     from idre_clean.core.session import HiveSession, NonceWindow
     from idre_clean.core.neural_codec import NeuralCodec
     from idre_clean.hive.utils import canonical_json, pack_plaintext
-    from idre_clean.hive.protocol import aad_with_epoch_anchor
 except ImportError:
     from hive.node import FieldBoundNode
     from core.session import HiveSession, NonceWindow
     from core.neural_codec import NeuralCodec
     from hive.utils import canonical_json
-    from hive.protocol import aad_with_epoch_anchor
 
 class MockVocab:
     def __init__(self):

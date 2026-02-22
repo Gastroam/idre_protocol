@@ -1,10 +1,7 @@
 
 import time
 import sys
-import os
 import secrets
-import random
-from typing import List
 from pathlib import Path
 
 # Add repo root to sys.path
@@ -19,7 +16,6 @@ if _PARENT_ROOT not in sys.path:
 
 from idre_clean.hive.node import FieldBoundNode
 from idre_clean.core.vocab_codec import Vocab
-from idre_clean.hive.utils import canonical_json
 
 def make_dummy_vocab():
     return Vocab(["a"], {"a": 0}, b"dum", {})

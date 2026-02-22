@@ -21,13 +21,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-import logging
 import random
 import sys
 import time
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import aiohttp
 from aiohttp import web

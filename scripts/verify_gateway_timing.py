@@ -5,11 +5,9 @@ Verify Gateway Timing & Traffic Shaping
 
 import time
 import asyncio
-import aiohttp
 import numpy as np
 import subprocess
 import sys
-import signal
 
 from aiohttp import web
 

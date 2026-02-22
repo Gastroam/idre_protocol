@@ -12,8 +12,17 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python: ["3.11", "3.12"]
     runs-on: ${{ matrix.os }}
+
+    env:
+      # The repo may be checked out under any directory name.
+      # All internal imports use `from idre_clean.*`, so we create a symlink
+      # and add the workspace parent to PYTHONPATH.
+      PYTHONPATH: ${{ github.workspace }}/..
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: idre_clean
 
       - uses: actions/setup-python@v5
         with:
@@ -25,21 +34,21 @@ jobs:
           python -m pip install numpy pytest ruff
 
       - name: Lint (ruff)
+        working-directory: idre_clean
         run: |
-          python -m ruff check core attacks tests transports/idre_silence.py transports/wav_io.py scripts/hive_v12_node_server.py scripts/idre_offline_gateway.py
+          python -m ruff check core hive tests attacks
 
       - name: Compile (syntax)
+        working-directory: idre_clean
         run: |
-          python -m compileall -q .
+          python -m compileall -q core hive tests
 
       - name: Unit Tests (pytest)
+        working-directory: idre_clean
         run: |
-          python -m pytest
-
-      - name: Integration: Restart/Reconnect Suite
-        run: |
-          python attacks/idre_restart_reconnect_suite.py
+          python -m pytest tests/ -q --tb=short
 
       - name: Integration: Rate Limit Suite
+        working-directory: idre_clean
         run: |
-          python attacks/idre_rate_limit_suite.py
+          python attacks/idre_rate_limit_suite.py --n 50

@@ -3,11 +3,10 @@
 Verify "Shattered Glass" Superposition (Healing by Forking)
 """
 
-import unittest
 import sys
 import copy
 import logging
-from typing import List, Optional
+from typing import List
 
 # Add repo root to sys.path
 from pathlib import Path
@@ -29,8 +28,6 @@ try:
 except ImportError:
     # Fallback
     sys.path.append("f:/idre_clean")
-    from hive.node import FieldBoundNode
-    from core.vocab_codec import Vocab
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger("Superposition")

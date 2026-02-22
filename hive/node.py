@@ -96,6 +96,17 @@ class FieldBoundNode:
         self.pepper = str(pepper)
         self.seed = int(seed)
         
+        # IDRE v2.4: Pepper is MANDATORY for production deployments.
+        # Without it, gradient-descent weight recovery reaches 97.9% accuracy (Appendix A.3).
+        if not self.pepper:
+            import warnings
+            warnings.warn(
+                "IDRE SECURITY WARNING: pepper is empty. Without pepper, fingerprint bits "
+                "are vulnerable to gradient-descent weight recovery (97.9% accuracy in <3min). "
+                "Set pepper to a high-entropy secret for production deployments. See paper §2.2.",
+                stacklevel=2,
+            )
+        
         # IDRE v3: Initialize Topology Hiding (Unfolding Key)
         _dim = int(getattr(MTIConfig(), "embedding_dim", 64))
         self.topology = TopologyManager(seed=self.seed, dim=_dim)
