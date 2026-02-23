@@ -19,7 +19,6 @@ logs/
 
 # Large data files (reproduce via scripts/extract_vocab_from_tokenizer_json.py)
 vocab.bin
-vocab.jsonl
 
 # Debug scripts
 lattice_debug.py
@@ -31,3 +30,13 @@ transports/
 .vscode/
 .idea/
 *.swp
+
+# Attack artifacts
+attacks/live_node_assault_clean_utf8.txt
+attacks/live_node_assault_clean.txt
+attacks/live_node_assault.log
+attacks/cryptanalysis/recovered_keystreams.json
+attacks/cryptanalysis/data_uniform_A_64.json
+attacks/cryptanalysis/data_random_64.json
+attacks/cryptanalysis/data_counter_block1.json
+attacks/cryptanalysis/report_out.txt
