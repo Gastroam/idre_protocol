@@ -11,6 +11,7 @@ CELL_MAGIC8 = b"IDRCELL1"
 
 @dataclass(frozen=True)
 class Cell:
+    """Fixed-size transport container for opaque inner payload."""
     inner: bytes  # caller-defined opaque payload (often a packed receive envelope)
 
 
@@ -41,6 +42,11 @@ def pack_cell(*, inner: bytes, cell_len: int) -> bytes:
 
 
 def unpack_cell(blob: bytes) -> Cell:
+    """
+    Unpacks a fixed-size Cell from binary blob.
+    
+    Verifies the MAGIC8 header and inner length, returning the resulting Cell object.
+    """
     if not isinstance(blob, (bytes, bytearray)):
         raise TypeError("blob must be bytes")
     bb = bytes(blob)
@@ -56,6 +62,11 @@ def unpack_cell(blob: bytes) -> Cell:
 
 
 def maybe_unpack_cell(blob: bytes) -> Tuple[bool, Optional[Cell]]:
+    """
+    Safely attempts to unpack a Cell from a binary blob.
+    
+    Returns a tuple of (success_boolean, Cell or None).
+    """
     try:
         return True, unpack_cell(blob)
     except Exception:

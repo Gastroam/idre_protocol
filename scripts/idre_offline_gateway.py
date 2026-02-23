@@ -12,10 +12,10 @@ import zlib
 # for `import idre_clean.*` to work.
 from pathlib import Path
 
-from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
-from idre_clean.core.offline_envelope import open_envelope, seal
-from idre_clean.core.profile import compute_field_profile_id
-from idre_clean.core.vocab_codec import decode_text as vocab_decode_text, encode_text as vocab_encode_text, load_vocab
+from core.frozen_physics import compute_fingerprint_bits_frozen_v12
+from core.offline_envelope import open_envelope, seal
+from core.profile import compute_field_profile_id
+from core.vocab_codec import decode_text as vocab_decode_text, encode_text as vocab_encode_text, load_vocab
 from idre_clean.transports.idre_silence import IDRESilenceProtocol
 from idre_clean.transports.wav_io import read_wav_pcm16, write_wav_pcm16
 

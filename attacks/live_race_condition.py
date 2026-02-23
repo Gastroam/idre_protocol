@@ -3,7 +3,6 @@ import sys
 import threading
 import concurrent.futures
 import requests
-from pathlib import Path
 
 TARGET_URL = "https://idre.mti-evo.online"  # Live Node URL
 
@@ -31,8 +30,8 @@ def run_live_race_test(target_url):
     # However, if it's purely a race condition test, we can just send the SAME message concurrently.
     # To create the message, we can instantiate a temporary local node just to sign it.
     try:
-        from idre_clean.hive.node import FieldBoundNode
-        from idre_clean.core.vocab_codec import Vocab
+        from hive.node import FieldBoundNode
+        from core.vocab_codec import Vocab
     except ImportError:
         from hive.node import FieldBoundNode
         from core.vocab_codec import Vocab

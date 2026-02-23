@@ -30,21 +30,21 @@ from typing import Dict, Any
 
 # --- Path Setup ---
 try:
-    from idre_clean.hive.node import FieldBoundNode
-    from idre_clean.hive.utils import canonical_json
+    from hive.node import FieldBoundNode
+    from hive.utils import canonical_json
 except ImportError:
 
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
     try:
-        from idre_clean.hive.node import FieldBoundNode
-        from idre_clean.hive.utils import canonical_json
+        from hive.node import FieldBoundNode
+        from hive.utils import canonical_json
     except ImportError as e:
         print(f"[!] Failed to import modules: {e}")
  
         sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
         try:
-             from idre_clean.hive.node import FieldBoundNode
-             from idre_clean.hive.utils import canonical_json
+             from hive.node import FieldBoundNode
+             from hive.utils import canonical_json
         except ImportError:
              print("[!] Fatal: Could not import idre_clean modules. Check sys.path.")
              sys.exit(1)
@@ -84,7 +84,7 @@ class EveResonant:
         # Vocab is mandatory for node construction (even if content codec is utf8).
         # For this demo, Eve does not need a real vocab because we run utf8 content.
         try:
-            from idre_clean.core.vocab_codec import Vocab
+            from core.vocab_codec import Vocab
         except Exception:
             from core.vocab_codec import Vocab
         toks = ["<pad>", "<unk>", "a", "b", "c", " ", ".", ","]
@@ -110,7 +110,7 @@ class EveResonant:
 
     def _ratchet_key(self, sess_id: str) -> int:
         try:
-            from idre_clean.hive.ratchet import kdf_int
+            from hive.ratchet import kdf_int
         except Exception:
             from hive.ratchet import kdf_int
         return int(kdf_int(int(self.node.seed), f"INIT::{sess_id}"))
@@ -247,6 +247,7 @@ def main():
         print(f"[*] Launching Node A (:{p_a}) and Node B (:{p_b}) [Lattice+Plasticity]...")
         # Capture output for debugging if they fail
         # Use existing vocab.bin from CWD (Repo Root)
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         proc_a = subprocess.Popen(cmd_base + ["--port", str(p_a), "--node-id", "A"] + common_args, cwd=root_dir, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         proc_b = subprocess.Popen(cmd_base + ["--port", str(p_b), "--node-id", "B"] + common_args, cwd=root_dir, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         

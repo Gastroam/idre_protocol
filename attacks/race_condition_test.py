@@ -6,7 +6,6 @@ import sys
 import concurrent.futures
 import threading
 
-from pathlib import Path
 
 PORT_A = 8920
 PORT_B = 8921

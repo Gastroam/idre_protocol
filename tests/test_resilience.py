@@ -1,13 +1,11 @@
 import unittest
 import logging
 import time
-import os
-import sys
 
 # Fix Path for idre_clean package resolution
-from idre_clean.hive.node import FieldBoundNode, canonical_json
-from idre_clean.core.session import HiveSession
-from idre_clean.core.vocab_codec import Vocab
+from hive.node import FieldBoundNode, canonical_json
+from core.session import HiveSession
+from core.vocab_codec import Vocab
 import struct
 
 def _create_dummy_vocab():

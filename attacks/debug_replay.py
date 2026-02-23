@@ -1,4 +1,3 @@
-import sys
 
 try:
     from scripts import demo_api

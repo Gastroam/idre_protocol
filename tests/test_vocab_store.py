@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from idre_clean.core.vocab_store import read_vocab_bin, write_vocab_bin
+from core.vocab_store import read_vocab_bin, write_vocab_bin
 
 def test_vocab_bin_roundtrip(tmp_path) -> None:
     tokens = ["a", " ", "b", "\n", "the"]

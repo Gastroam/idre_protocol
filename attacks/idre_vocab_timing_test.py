@@ -227,7 +227,7 @@ def main() -> int:
         codec_stats: Dict[str, Any] = {"codec": str(args.codec), "allow_literals": bool(args.allow_literals)}
         if str(args.codec) == "vocab":
             sys.path.insert(0, str(Path(repo_root).parent))
-            from idre_clean.core.vocab_codec import decode_text, encode_text, load_vocab  # type: ignore
+            from core.vocab_codec import decode_text, encode_text, load_vocab  # type: ignore
 
             v = load_vocab(str(args.vocab_file))
             blob = encode_text(str(msg), v, allow_literals=bool(args.allow_literals))

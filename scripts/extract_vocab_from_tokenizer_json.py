@@ -18,7 +18,7 @@ from pathlib import Path
 
 import sys
 
-from idre_clean.core.vocab_store import write_vocab_bin
+from core.vocab_store import write_vocab_bin
 
 def main() -> int:
     ap = argparse.ArgumentParser()

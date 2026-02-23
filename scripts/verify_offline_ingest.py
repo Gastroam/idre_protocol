@@ -7,8 +7,8 @@ import sys
 # Add repo root to sys.path
 from pathlib import Path
 
-from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
-from idre_clean.core.offline_envelope import seal
+from core.frozen_physics import compute_fingerprint_bits_frozen_v12
+from core.offline_envelope import seal
 
 PORT = 8905
 NODE_ID = "OFFLINE_TEST"
@@ -60,7 +60,7 @@ def generate_envelope(seed: int, plaintext: str) -> bytes:
     # Let's assume Gateway spoofs the profile ID to match the *Target Node*.
     # For now, let's fetch the node's profile ID from a dummy request or just compute it as "lattice".
     
-    from idre_clean.core.profile import compute_field_profile_id
+    from core.profile import compute_field_profile_id
     # Target Node Profile (Lattice + Plasticity)
     profile = {
         "proto": "HIVE-P2P/1.2",

@@ -33,8 +33,8 @@ from aiohttp import web
 # Allow running as a script from within the standalone package folder
 
 try:
-    from idre_clean.core.cell import pack_cell, unpack_cell
-    from idre_clean.core.wire_bin import pack_receive_envelope, unpack_receive_envelope, unpack_wire_message
+    from core.cell import pack_cell, unpack_cell
+    from core.wire_bin import pack_receive_envelope, unpack_receive_envelope, unpack_wire_message
 except ImportError:
     # Fallback for when running in a different context/environment
     try:

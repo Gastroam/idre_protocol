@@ -1,12 +1,10 @@
 """Tests for Dark Mode — Gatekeeper SPA (Single Packet Authorization)."""
 
-import os
-import sys
 import time
 import unittest
 
-from idre_clean.hive.knock import create_knock, verify_knock, derive_knock_key, KNOCK_LEN
-from idre_clean.hive.gatekeeper import UDPGatekeeper
+from hive.knock import create_knock, verify_knock, derive_knock_key, KNOCK_LEN
+from hive.gatekeeper import UDPGatekeeper
 
 # Dummy field fingerprint bits for testing
 TEST_BITS = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1]

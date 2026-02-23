@@ -5,7 +5,7 @@ from pathlib import Path
 # Add repo root to sys.path (parent of idre_clean folder)
 # This assumes the script is located at .../idre_clean/scripts/hive_v12_node_server.py
 
-from idre_clean.hive.server import _ThreadedHTTPServer, Handler, TokenBucketLimiter
+from hive.server import _ThreadedHTTPServer, Handler, TokenBucketLimiter
 
 # Defaults
 DEFAULT_RL_CHALLENGE_RPS = 5.0
@@ -13,7 +13,7 @@ DEFAULT_RL_CHALLENGE_BURST = 10.0
 DEFAULT_RL_VERIFY_RPS = 2.0
 DEFAULT_RL_VERIFY_BURST = 5.0
 
-from idre_clean.hive.cli import get_node_argparser, configure_node_from_args
+from hive.cli import get_node_argparser, configure_node_from_args
 
 def main() -> int:
     ap = get_node_argparser()

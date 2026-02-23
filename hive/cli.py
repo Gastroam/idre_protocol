@@ -6,8 +6,8 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 from typing import Dict, Optional
-from idre_clean.hive.node import FieldBoundNode
-from idre_clean.hive.utils import (
+from hive.node import FieldBoundNode
+from hive.utils import (
     DEFAULT_MAX_PAYLOAD_INTS,
     DEFAULT_MAX_BODY_BYTES,
     DEFAULT_CHALLENGE_TTL_MS,
@@ -17,7 +17,7 @@ from idre_clean.hive.utils import (
     DEFAULT_MAX_PENDING_CHALLENGES,
     DEFAULT_MAX_CT_LEN,
 )
-from idre_clean.core.vocab_codec import Vocab, load_vocab_registry
+from core.vocab_codec import Vocab, load_vocab_registry
 
 # Defaults
 DEFAULT_RL_CHALLENGE_RPS = 5.0
@@ -28,6 +28,7 @@ DEFAULT_RL_RECEIVE_RPS = 10.0
 DEFAULT_RL_RECEIVE_BURST = 50.0
 
 def parse_int_tuple(value: str):
+    """Parses a comma-separated string of integers into a tuple."""
     if not value:
         return tuple()
     out = []
@@ -39,6 +40,7 @@ def parse_int_tuple(value: str):
     return tuple(out)
 
 def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParser:
+    """Creates and returns the ArgumentParser for the Hive node."""
     ap = argparse.ArgumentParser(description=description)
     ap.add_argument("--port", type=int, default=8890)
     ap.add_argument("--node-id", type=str, required=True)
@@ -96,6 +98,7 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
     return ap
 
 def configure_node_from_args(args) -> FieldBoundNode:
+    """Instantiates and configures a FieldBoundNode based on parsed CLI arguments."""
     vocab: Optional[Vocab] = None
     vocab_registry: Optional[Dict[bytes, Vocab]] = None
     # IDRE v3: Vocab is MANDATORY for Substrate Initialization (Vector Space Folding)

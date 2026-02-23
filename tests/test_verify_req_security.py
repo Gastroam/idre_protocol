@@ -1,9 +1,7 @@
-import os
-import sys
 import unittest
 
-from idre_clean.core.vocab_codec import Vocab
-from idre_clean.hive.node import FieldBoundNode
+from core.vocab_codec import Vocab
+from hive.node import FieldBoundNode
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

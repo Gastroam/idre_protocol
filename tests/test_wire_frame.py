@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 
-from idre_clean.core.wire import frame_payload, unframe_payload
+from core.wire import frame_payload, unframe_payload
 
 def test_wire_frame_unframe_roundtrip() -> None:
     ct = [i & 0xFF for i in range(200)]

@@ -2,9 +2,9 @@ import hmac
 import struct
 import hashlib
 from typing import List, Optional, Tuple
-from idre_clean.core.neural_codec import NeuralCodec
+from core.neural_codec import NeuralCodec
 try:
-    from idre_clean.core.physics_v12 import (
+    from core.physics_v12 import (
         compute_block_salt,
         derive_keystream_and_permutation,
         inverse_permute,

@@ -1,5 +1,9 @@
 import json
+import logging
 import threading
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 import time
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -10,7 +14,7 @@ from typing import Any, Dict, Optional, Tuple
 from .utils import _now_ms, DEFAULT_MAX_BODY_BYTES
 from .node import FieldBoundNode
 
-from idre_clean.core.wire_bin import pack_receive_envelope, pack_wire_message, unpack_receive_envelope
+from core.wire_bin import pack_receive_envelope, pack_wire_message, unpack_receive_envelope
 
 @dataclass
 class _Bucket:
@@ -76,6 +80,11 @@ class _ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
 
 
 class Handler(BaseHTTPRequestHandler):
+    """
+    HTTP Request Handler for the Hive Node.
+    
+    Handles routing for handshake, sending, and receiving messages over HTTPS/HTTP.
+    """
     server_version = "HiveV12/0.1"
 
     def _require_local(self) -> bool:
@@ -254,11 +263,6 @@ class Handler(BaseHTTPRequestHandler):
                 msg = node.create_verify_req(session_id=session_id, ephemeral_salt=e_salt, challenge=challenge)
                 self._json(200, {"status": "ok", "msg": msg})
             except Exception:
-                import traceback
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
                 logger.error("Exception occurred:", exc_info=True)
                 self._json(500, {"error": "internal"})
             return
@@ -298,11 +302,6 @@ logger.setLevel(logging.INFO)
                 node.force_session(peer_id, session_id, ephemeral_salt)
                 self._json(200, {"status": "ok", "forced": True})
             except Exception as e:
-                import traceback
-import logging
-
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
                 logger.error("Exception occurred:", exc_info=True)
                 self._json(500, {"error": str(e)})
             return

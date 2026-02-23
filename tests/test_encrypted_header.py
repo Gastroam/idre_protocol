@@ -1,12 +1,10 @@
 """Tests for Encrypted Headers and Rotating Route Tags."""
 
-import os
-import sys
 import unittest
 
-from idre_clean.hive.protocol import derive_route_tag, encrypt_header, decrypt_header
-from idre_clean.hive.node import FieldBoundNode
-from idre_clean.core.vocab_codec import Vocab
+from hive.protocol import derive_route_tag, encrypt_header, decrypt_header
+from hive.node import FieldBoundNode
+from core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

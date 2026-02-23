@@ -1,9 +1,7 @@
 import unittest
-import os
-import sys
 
 # Add repo root to sys.path
-from idre_clean.core.neural_codec import NeuralCodec, MAX_ENTRIES
+from core.neural_codec import NeuralCodec, MAX_ENTRIES
 
 class TestCodecPoisoning(unittest.TestCase):
     def setUp(self):

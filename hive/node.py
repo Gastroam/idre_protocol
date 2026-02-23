@@ -16,9 +16,9 @@ try:
 except Exception:
     from mti_evo.core.config import MTIConfig  # type: ignore
 
-from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
-from idre_clean.core.offline_envelope import open_envelope
-from idre_clean.core.vocab_codec import (
+from core.frozen_physics import compute_fingerprint_bits_frozen_v12
+from core.offline_envelope import open_envelope
+from core.vocab_codec import (
     Vocab,
     decode_text as vocab_decode_text,
     encode_text as vocab_encode_text,
@@ -37,7 +37,7 @@ from .utils import (
     DEFAULT_MAX_PENDING_CHALLENGES
 )
 try:
-    from idre_clean.core.physics_v12 import (
+    from core.physics_v12 import (
         derive_locked_planes,
         scan_fingerprint_bits,
         seeded_unit_vector,
@@ -61,10 +61,10 @@ from .protocol import (
 )
 from .ratchet import derive_ratchet_bits, kdf_int
 try:
-    from idre_clean.core.session import HiveSession, PendingChallenge
+    from core.session import HiveSession, PendingChallenge
 except Exception:
     from core.session import HiveSession, PendingChallenge
-from idre_clean.core.neural_codec import NeuralCodec
+from core.neural_codec import NeuralCodec
 from .crypto import derive_mac_key
 
 from functools import wraps
@@ -79,6 +79,12 @@ def _with_lock(method):
 
 
 class FieldBoundNode:
+    """
+    Core IDRE Protocol Node.
+    
+    Handles sessions, neural encoding/decoding, cryptography, replay protection,
+    and sending/receiving IDRE-compliant packets.
+    """
     def __init__(
         self,
         *,
@@ -105,6 +111,7 @@ class FieldBoundNode:
         topology_seed: Optional[int] = None,
         healing_mode: str = "none",
     ):
+        """Initializes a new FieldBoundNode with specific physical and cryptographic parameters."""
         self.node_id = str(node_id)
         self.pepper = str(pepper)
         self.seed = int(seed)
@@ -1118,7 +1125,6 @@ class FieldBoundNode:
                      return {"status": "reject", "reason": "unpack_error"}
             except Exception as e:
                 if self.print_events:
-                    import traceback
                     logger.error("Exception occurred:", exc_info=True)
                     logger.info(f"[{self.node_id}] RECV error: {e}")
                 return {"status": "reject", "reason": "unpack_error"}

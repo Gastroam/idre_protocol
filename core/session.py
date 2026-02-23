@@ -39,6 +39,7 @@ class NonceWindow:
 
 @dataclass
 class HiveSession:
+    """Manages state for an active connection, including replay protection and codecs."""
     session_id: str
     peer_id: str
     start_time: float
@@ -55,9 +56,11 @@ class HiveSession:
     pending_acks: List[bytes] = field(default_factory=list)
 
     def is_valid(self) -> bool:
+        """Checks if the session is still within its TTL."""
         return (time.time() - float(self.start_time)) < float(self.ttl_s)
 
     def clone(self) -> "HiveSession":
+        """Returns a deep copy of the session state, useful for rolling back mutations."""
         import copy
         # Deep copy is essential for mutable structures like codec state, nonces, pending_acks
         return copy.deepcopy(self)
@@ -65,6 +68,7 @@ class HiveSession:
 
 @dataclass
 class PendingChallenge:
+    """Tracks a challenge string issued to a peer during handshake."""
     challenge: str
     issued_at_ms: int
     expires_at_ms: int

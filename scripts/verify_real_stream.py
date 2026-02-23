@@ -25,12 +25,12 @@ from pathlib import Path
 
 # Add repo parent to sys.path to support 'import idre_clean'
 
-from idre_clean.hive.client import HiveClient
+from hive.client import HiveClient
 # Import FieldBoundNode for Eve/Cracker logic locally
-from idre_clean.hive.node import FieldBoundNode
+from hive.node import FieldBoundNode
 
 def canonical_json(obj: Any) -> bytes:
-    from idre_clean.hive.utils import canonical_json as util_cjs
+    from hive.utils import canonical_json as util_cjs
     return util_cjs(obj)
 
 # --- Core Logic ---
@@ -176,7 +176,7 @@ class SeedCracker:
                 
                 # Mock a local node with correct params
                 # Helper for vocab (copied from verifying scripts)
-                try: from idre_clean.core.vocab_codec import Vocab
+                try: from core.vocab_codec import Vocab
                 except: from core.vocab_codec import Vocab
                 _dummy = Vocab(["a"], {"a":0}, b"dum", {})
 
@@ -216,7 +216,7 @@ class EveDecryptor:
         self.known_sessions: Dict[str, int] = {} # session_id -> ephemeral_salt
         if FieldBoundNode:
             # Eve has the seed, but NO vocab
-            try: from idre_clean.core.vocab_codec import Vocab
+            try: from core.vocab_codec import Vocab
             except: from core.vocab_codec import Vocab
             _dummy = Vocab(["a"], {"a":0}, b"dum", {})
             
@@ -367,7 +367,7 @@ class SeedCracker:
                 
                 # Mock a local node with correct params
                 # Helper for vocab (copied from verifying scripts)
-                try: from idre_clean.core.vocab_codec import Vocab
+                try: from core.vocab_codec import Vocab
                 except: from core.vocab_codec import Vocab
                 _dummy = Vocab(["a"], {"a":0}, b"dum", {})
 
@@ -407,7 +407,7 @@ class EveDecryptor:
         self.known_sessions: Dict[str, int] = {} # session_id -> ephemeral_salt
         if FieldBoundNode:
             # Eve has the seed, but NO vocab
-            try: from idre_clean.core.vocab_codec import Vocab
+            try: from core.vocab_codec import Vocab
             except: from core.vocab_codec import Vocab
             _dummy = Vocab(["a"], {"a":0}, b"dum", {})
             

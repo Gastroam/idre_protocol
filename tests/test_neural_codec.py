@@ -1,7 +1,5 @@
 
 import unittest
-import os
-import sys
 import struct
 
 # Add repo root to sys.path
@@ -13,8 +11,8 @@ try:
         MIN_OBSERVATIONS
     )
 except ImportError:
-    # Or as 'idre_clean.core.neural_codec' if installed/structured as package
-    from idre_clean.core.neural_codec import (
+    # Or as 'core.neural_codec' if installed/structured as package
+    from core.neural_codec import (
         NeuralCodec, 
         OP_LITERAL, OP_PROPOSE, OP_RECALL, OP_ACK,
         MIN_OBSERVATIONS

@@ -1,10 +1,9 @@
 import os
-import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from idre_clean.hive.cli import configure_node_from_args, get_node_argparser
+from hive.cli import configure_node_from_args, get_node_argparser
 
 class TestCliPepperRequirement(unittest.TestCase):
     def _base_args(self):

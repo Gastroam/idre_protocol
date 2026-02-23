@@ -6,7 +6,7 @@ from typing import Dict, Optional
 import numpy as np
 
 try:
-    from idre_clean.core.physics_v12 import seeded_unit_vector
+    from core.physics_v12 import seeded_unit_vector
 except Exception:  # pragma: no cover - fallback for script-style execution
     from core.physics_v12 import seeded_unit_vector
 

@@ -16,10 +16,10 @@ if str(_REPO_ROOT) not in sys.path:
 
 # Fallback for testing environment
 try:
-    from idre_clean.hive.node import FieldBoundNode
-    from idre_clean.core.session import HiveSession, NonceWindow
-    from idre_clean.core.neural_codec import NeuralCodec
-    from idre_clean.hive.utils import canonical_json, pack_plaintext
+    from hive.node import FieldBoundNode
+    from core.session import HiveSession, NonceWindow
+    from core.neural_codec import NeuralCodec
+    from hive.utils import canonical_json, pack_plaintext
 except ImportError:
     from hive.node import FieldBoundNode
     from core.session import HiveSession, NonceWindow
@@ -34,7 +34,7 @@ class MockVocab:
 class TestMultiverse(unittest.TestCase):
     def _create_dummy_vocab(self):
         try:
-            from idre_clean.core.vocab_codec import Vocab
+            from core.vocab_codec import Vocab
         except ImportError:
             from core.vocab_codec import Vocab
         return Vocab(["a"], {"a": 0}, b"dummy", {})
@@ -143,7 +143,7 @@ class TestMultiverse(unittest.TestCase):
         # We use `encrypt_payload` or low level
         # Let's use `encrypt_bytes` if exposed? No.
         # Use `send` logic simulation
-        from idre_clean.hive.protocol import aad_with_epoch_anchor
+        from hive.protocol import aad_with_epoch_anchor
         aad_full = aad_with_epoch_anchor(aad, chain_hash=sess_b.chain_hash, seq=sess_b.out_seq + 1)
         
         ct_blob, tag = node_b.encrypt_bytes(

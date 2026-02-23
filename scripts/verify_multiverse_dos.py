@@ -14,8 +14,8 @@ if _REPO_ROOT not in sys.path:
 if _PARENT_ROOT not in sys.path:
     sys.path.insert(0, _PARENT_ROOT)
 
-from idre_clean.hive.node import FieldBoundNode
-from idre_clean.core.vocab_codec import Vocab
+from hive.node import FieldBoundNode
+from core.vocab_codec import Vocab
 
 def make_dummy_vocab():
     return Vocab(["a"], {"a": 0}, b"dum", {})

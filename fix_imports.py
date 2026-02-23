@@ -21,10 +21,10 @@ def fix_imports(filepath):
     original = content
 
     # Standardize direct imports from core/hive
-    content = re.sub(r"^from core\.", "from idre_clean.core.", content, flags=re.MULTILINE)
-    content = re.sub(r"^from hive\.", "from idre_clean.hive.", content, flags=re.MULTILINE)
-    content = re.sub(r"^import core\.", "import idre_clean.core.", content, flags=re.MULTILINE)
-    content = re.sub(r"^import hive\.", "import idre_clean.hive.", content, flags=re.MULTILINE)
+    content = re.sub(r"^from core\.", "from core.", content, flags=re.MULTILINE)
+    content = re.sub(r"^from hive\.", "from hive.", content, flags=re.MULTILINE)
+    content = re.sub(r"^import core\.", "import core.", content, flags=re.MULTILINE)
+    content = re.sub(r"^import hive\.", "import hive.", content, flags=re.MULTILINE)
     
     # Optional: in `hive/` or `core/` itself, some relative imports might need checking, but we only touch tests/scripts/attacks
     

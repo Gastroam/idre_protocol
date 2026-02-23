@@ -19,6 +19,7 @@ MAX_PROPOSE_PER_MIN = 60 # Rate limit
 HASH_FUNC = hashlib.sha256
 
 class CodecStats:
+    """Tracks basic usage statistics for the NeuralCodec session."""
     def __init__(self):
         self.literals_sent = 0
         self.recalls_sent = 0
@@ -68,6 +69,7 @@ class NeuralCodec:
 
 
 class CodecState:
+    """Manages the internal state, LRU, and dictionaries for compression/decompression."""
     def __init__(self, key: bytes, name: str):
         self.key = key
         self.name = name

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
-from idre_clean.core.offline_envelope import open_envelope, seal
-from idre_clean.core.profile import compute_field_profile_id
-from idre_clean.core.vocab_codec import decode_text as vocab_decode_text, encode_text as vocab_encode_text, load_vocab
+from core.frozen_physics import compute_fingerprint_bits_frozen_v12
+from core.offline_envelope import open_envelope, seal
+from core.profile import compute_field_profile_id
+from core.vocab_codec import decode_text as vocab_decode_text, encode_text as vocab_encode_text, load_vocab
 
 def _default_profile() -> dict:
     return {

@@ -1,22 +1,20 @@
 
 import unittest
 import logging
-import sys
-import os
 
 # Add repo root to path
 # We need to add 'f:\idre_clean' (or whatever the root is) to sys.path
 # stored in current_dir/..
 # Also need parent of root for 'idre_clean' package resolution if it expects that structure
 # But usually if we are in f:\idre_clean, import hive works.
-# But 'from idre_clean.core...' requires 'idre_clean' to be a package in path?
+# But 'from core...' requires 'idre_clean' to be a package in path?
 # No, 'idre_clean' is likely the Repo Root, but unless there is an __init__.py at root, it's not a package?
-# Actually node.py does `from idre_clean.core...` so it expects `idre_clean` to be importable.
+# Actually node.py does `from core...` so it expects `idre_clean` to be importable.
 # This means the directory CONTAINER of `idre_clean` must be in path.
 # So we need `root_dir/..`
 
-from idre_clean.hive.node import FieldBoundNode
-from idre_clean.core.vocab_codec import Vocab
+from hive.node import FieldBoundNode
+from core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

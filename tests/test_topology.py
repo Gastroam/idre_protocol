@@ -1,13 +1,11 @@
 import unittest
 import numpy as np
-import sys
-from pathlib import Path
 
 # Fix path: Add 'f:\' (parent of idre_clean) to sys.path
 
-from idre_clean.hive.topology import TopologyManager
-from idre_clean.hive.substrate import FrozenSubstrate
-from idre_clean.core.physics_v12 import scan_fingerprint_bits, seeded_unit_vector
+from hive.topology import TopologyManager
+from hive.substrate import FrozenSubstrate
+from core.physics_v12 import scan_fingerprint_bits, seeded_unit_vector
 
 class TestTopologyFolding(unittest.TestCase):
     def setUp(self):

@@ -7,7 +7,7 @@ from typing import Dict, Optional
 from .utils import _now_ms
 
 try:
-    from idre_clean.core.session import PendingChallenge
+    from core.session import PendingChallenge
 except Exception:  # pragma: no cover - fallback for script-style execution
     from core.session import PendingChallenge
 

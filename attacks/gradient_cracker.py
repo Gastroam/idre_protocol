@@ -26,16 +26,11 @@ from typing import List, Tuple
 if os.getcwd() not in sys.path:
     sys.path.append(os.getcwd())
 
-# 2. Add repo root relative to file
-# attacks/gradient_cracker.py -> .. -> idre_clean(root)
-# 3. Add PARENT of repo root (to allow 'import idre_clean')
-parent_dir = os.path.abspath(os.path.join(root_dir, ".."))
-
 try:
     # Try fully qualified first (standard)
-    from idre_clean.core.physics_v12 import derive_locked_planes, scan_fingerprint_bits
-    from idre_clean.hive.node import FieldBoundNode
-    from idre_clean.core.vocab_codec import Vocab
+    from core.physics_v12 import derive_locked_planes, scan_fingerprint_bits
+    from hive.node import FieldBoundNode
+    from core.vocab_codec import Vocab
 except ImportError:
     try:
         # Fallback for script-style execution from repo root

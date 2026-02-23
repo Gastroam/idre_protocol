@@ -37,9 +37,9 @@ if str(_REPO_PARENT) not in sys.path:
     sys.path.insert(0, str(_REPO_PARENT))
 
 try:
-    from idre_clean.hive.node import FieldBoundNode
-    from idre_clean.hive.utils import canonical_json
-    from idre_clean.core.vocab_codec import Vocab
+    from hive.node import FieldBoundNode
+    from hive.utils import canonical_json
+    from core.vocab_codec import Vocab
 except ImportError:
     from hive.node import FieldBoundNode
     from hive.utils import canonical_json
@@ -129,7 +129,7 @@ class EveDecryptor:
                 # Node derives genesis chain hash from (seed, session_id); Eve can compute it too with leaked seed.
                 genesis = hmac_genesis(self.seed, str(sid))
                 try:
-                    from idre_clean.hive.ratchet import kdf_int
+                    from hive.ratchet import kdf_int
                 except Exception:
                     from hive.ratchet import kdf_int
                 ratchet_key = kdf_int(int(self.seed), f"INIT::{sid}")

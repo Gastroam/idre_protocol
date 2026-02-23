@@ -1,11 +1,9 @@
 import unittest
-import os
-import sys
 
 # Add repo root to sys.path
-from idre_clean.hive.node import FieldBoundNode
-from idre_clean.core.neural_codec import OP_ACK
-from idre_clean.core.vocab_codec import Vocab
+from hive.node import FieldBoundNode
+from core.neural_codec import OP_ACK
+from core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

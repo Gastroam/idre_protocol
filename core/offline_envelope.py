@@ -149,6 +149,7 @@ def _decrypt_bytes(
 
 @dataclass
 class OfflineHeader:
+    """Standard header for an offline-encoded IDRE envelope."""
     type: str
     proto: str
     field_profile_id: str
@@ -212,6 +213,12 @@ def seal(
     compressed: bool = False,
     pad_bytes: int = 0,
 ) -> bytes:
+    """
+    Encrypt and MAC a plaintext message using the provided fingerprint bits.
+
+    Constructs an OfflineHeader, serializes it, encrypts the payload, and encapsulates
+    them into a binary MAGIC envelope.
+    """
     c_ms = int(_now_ms() if created_at_ms is None else created_at_ms)
     x_ms = int(c_ms + int(expires_in_ms))
     sid = session_id or secrets.token_hex(16)

@@ -9,7 +9,7 @@ import string
 # Add repo root to sys.path
 from pathlib import Path
 
-from idre_clean.hive.client import HiveClient
+from hive.client import HiveClient
 
 # Config
 PORT_A = 8910

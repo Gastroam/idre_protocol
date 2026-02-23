@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import struct
 
-from idre_clean.core.cell import pack_cell, unpack_cell
-from idre_clean.core.wire_bin import MAGIC8, pack_receive_envelope, pack_wire_message, unpack_receive_envelope, unpack_wire_message
+from core.cell import pack_cell, unpack_cell
+from core.wire_bin import MAGIC8, pack_receive_envelope, pack_wire_message, unpack_receive_envelope, unpack_wire_message
 
 def test_wire_bin_roundtrip() -> None:
     msg = {

@@ -1,19 +1,17 @@
 
 import unittest
-import os
-import sys
 
 # Add repo root to sys.path
 # We need to add the PARENT of idre_clean to sys.path to import idre_clean.xxx
 # idre_clean is at f:\idre_clean.
 # So we need to add f:\ to sys.path?
 # Or if idre_clean is a package inside f:\idre_clean\idre_clean?
-# The structure is f:\idre_clean\hive\node.py using `from idre_clean.core...`
+# The structure is f:\idre_clean\hive\node.py using `from core...`
 # This implies `idre_clean` IS a package.
 # So `f:\` must be in sys.path.
 
-from idre_clean.hive.node import FieldBoundNode
-from idre_clean.core.vocab_codec import Vocab
+from hive.node import FieldBoundNode
+from core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

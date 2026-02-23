@@ -29,7 +29,7 @@ if _PARENT_DIR not in sys.path:
     sys.path.insert(0, _PARENT_DIR)
 
 try:
-    from idre_clean.hive.node import FieldBoundNode
+    from hive.node import FieldBoundNode
 except ImportError:
     # If package is not installed, we rely on sys.path insert above
     from hive.node import FieldBoundNode
@@ -60,7 +60,7 @@ class TestNode(FieldBoundNode):
         # If successful, capture the content
         if blob is not None:
              try:
-                 from idre_clean.hive.utils import unpack_plaintext
+                 from hive.utils import unpack_plaintext
              except Exception:
                  from hive.utils import unpack_plaintext
              ok_unpack, text = unpack_plaintext(bytes(blob))
@@ -72,7 +72,7 @@ class TestNode(FieldBoundNode):
 # Helper to satisfy IDRE v3 Vocab Requirement
 def _get_dummy_vocab():
     try:
-        from idre_clean.core.vocab_codec import Vocab
+        from core.vocab_codec import Vocab
     except ImportError:
         from core.vocab_codec import Vocab
         

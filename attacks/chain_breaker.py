@@ -20,13 +20,8 @@ import logging
 if os.getcwd() not in sys.path:
     sys.path.append(os.getcwd())
 
-# 2. Add repo root relative to file
-# attacks/chain_breaker.py -> .. -> idre_clean(root)
-# 3. Add PARENT of repo root (to allow 'import idre_clean')
-parent_dir = os.path.abspath(os.path.join(root_dir, ".."))
-
 try:
-    from idre_clean.hive.node import FieldBoundNode
+    from hive.node import FieldBoundNode
 except ImportError:
     try:
         from hive.node import FieldBoundNode
