@@ -331,10 +331,10 @@ class FieldBoundNode:
             u_prime = np.dot(u, unfolding_mtx)
             w_prime = np.dot(w, unfolding_mtx)
             
-            a = float(np.dot(u_prime, weights))
-            b = float(np.dot(w_prime, weights))
-            amp = float(np.hypot(a, b))
-            tau = float(max(amp * self.tau_frac, 1e-9))
+            a = np.dot(u_prime, weights)
+            b = np.dot(w_prime, weights)
+            amp = abs(int(a)) + abs(int(b))
+            tau = max(int(amp * self.tau_frac), 1)
             
             out.extend(
                 scan_fingerprint_bits(

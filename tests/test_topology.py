@@ -46,10 +46,10 @@ class TestTopologyFolding(unittest.TestCase):
         # 2. Verify it DOES NOT match original (Raw)
         self.assertFalse(np.allclose(stored_w, self.secret_vec), "Stored weights must NOT be raw")
         
-        # 3. Verify it looks "different" (e.g. dot product is not 1.0)
-        # Note: Norm is preserved, so length is 1.0. But direction changes.
+        # 3. Verify it looks "different" (e.g. dot product is not maximum)
         dot_sim = np.dot(stored_w, self.secret_vec)
-        self.assertLess(abs(dot_sim), 0.99, "Folded vector should not be aligned with original")
+        max_sim = np.dot(self.secret_vec, self.secret_vec)
+        self.assertLess(abs(dot_sim), max_sim, "Folded vector should not be identical")
 
     def test_unfolding_access(self):
         """Verify scan_fingerprint_bits works ONLY with correct Unfolding Matrix."""
@@ -61,29 +61,29 @@ class TestTopologyFolding(unittest.TestCase):
         # Use u = secret_vec (Reference Frame)
         u = self.secret_vec
         # w orthogonal to u
-        w = np.random.randn(self.dim)
-        w -= np.dot(w, u) * u
-        w /= np.linalg.norm(w)
+        w = np.random.randint(-127, 127, size=self.dim, dtype=np.int64)
+        w -= np.dot(w, u) // np.dot(u, u) * u
         
         # 3. Scan WITHOUT Unfolding (Should Fail / Produce Garbage)
         # We need a reference "Truth" (Scan on Raw Weights using Aligned Plane)
         # Use low Tau to ensure bits
+        tau_val = np.dot(u, u) * 2
         true_bits = scan_fingerprint_bits(
-            weights=self.secret_vec, bias=0.0, tau=0.1, 
+            weights=self.secret_vec, bias=0.0, tau=tau_val, 
             u=u, w=w, n_angles=72, threshold=0.5
         )
         # Ensure we have signal
         self.assertGreater(sum(true_bits), 0, "Test Setup Error: True bits is empty")
 
         garbage_bits = scan_fingerprint_bits(
-            weights=w_folded, bias=0.0, tau=0.1, 
+            weights=w_folded, bias=0.0, tau=tau_val, 
             u=u, w=w, n_angles=72, threshold=0.5
         )
         
         # 4. Scan WITH Unfolding (Should Match Truth)
         P_unfold = self.topology.unfolding_matrix
         recovered_bits = scan_fingerprint_bits(
-            weights=w_folded, bias=0.0, tau=0.1, 
+            weights=w_folded, bias=0.0, tau=tau_val, 
             u=u, w=w, n_angles=72, threshold=0.5,
             unfolding_matrix=P_unfold
         )

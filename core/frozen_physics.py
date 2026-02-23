@@ -43,10 +43,10 @@ def compute_fingerprint_bits_frozen_v12(
 
     bits: List[int] = []
     for plane_idx, (u, w) in enumerate(derive_locked_planes_v12(embedding_dim, planes)):
-        a = float(np.dot(np.asarray(u, dtype=np.float64).reshape(-1), ww))
-        b = float(np.dot(np.asarray(w, dtype=np.float64).reshape(-1), ww))
-        amp = float(np.hypot(a, b))
-        tau = float(max(amp * float(tau_frac), 1e-9))
+        a = np.dot(np.asarray(u, dtype=np.int64).reshape(-1), ww)
+        b = np.dot(np.asarray(w, dtype=np.int64).reshape(-1), ww)
+        amp = abs(int(a)) + abs(int(b))
+        tau = max(int(amp * tau_frac), 1)
         bits.extend(
             scan_fingerprint_bits(
                 weights=ww,

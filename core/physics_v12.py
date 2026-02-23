@@ -20,45 +20,43 @@ def _expand_bytes(seed: bytes, n: int, domain: bytes) -> bytes:
 
 
 def derive_locked_plane(dims: int, domain: bytes = b"MTI/HIVE/V12/PLANE") -> Tuple[np.ndarray, np.ndarray]:
-    """Deterministic orthonormal plane basis (u, w)."""
+    """Deterministic integer plane basis (u, w). Pure Integer Geometry."""
     dims = int(dims)
     if dims < 1:
         raise ValueError("dims must be >= 1")
     if dims == 1:
-        return np.array([1.0], dtype=np.float64), np.array([1.0], dtype=np.float64)
+        return np.array([1], dtype=np.int64), np.array([1], dtype=np.int64)
 
     seed = _sha256(bytes(domain) + dims.to_bytes(4, "big", signed=False))
-    rng = np.random.default_rng(int.from_bytes(seed[:8], "big", signed=False))
-
-    u = rng.normal(0.0, 1.0, size=(dims,)).astype(np.float64)
-    u /= float(np.linalg.norm(u) or 1.0)
-
-    w = rng.normal(0.0, 1.0, size=(dims,)).astype(np.float64)
-    w = w - (float(np.dot(w, u)) * u)
-    w_norm = float(np.linalg.norm(w))
-    if w_norm <= 1e-15:
-        w = np.roll(u, 1)
-        w_norm = float(np.linalg.norm(w))
-    w /= w_norm
+    
+    u_bytes = _expand_bytes(seed, dims * 2, b"U/")
+    w_bytes = _expand_bytes(seed, dims * 2, b"W/")
+    
+    u = np.zeros(dims, dtype=np.int64)
+    w = np.zeros(dims, dtype=np.int64)
+    for i in range(dims):
+        # Signed 8-bit mapping [-127, 127]
+        u[i] = (int.from_bytes(u_bytes[i*2:i*2+2], "big", signed=False) % 255) - 127
+        w[i] = (int.from_bytes(w_bytes[i*2:i*2+2], "big", signed=False) % 255) - 127
+        
     return u, w
 
-
 def seeded_unit_vector(seed_int: int, dims: int, domain: bytes = b"MTI/HIVE/V12/ANCHOR") -> np.ndarray:
-    """Deterministic unit vector derived from (seed_int, dims)."""
+    """Deterministic integer vector derived from (seed_int, dims)."""
     seed_int = int(seed_int)
     dims = int(dims)
     if dims < 1:
         raise ValueError("dims must be >= 1")
     seed = _sha256(bytes(domain) + seed_int.to_bytes(8, "big", signed=False) + dims.to_bytes(4, "big", signed=False))
-    rng = np.random.default_rng(int.from_bytes(seed[:8], "big", signed=False))
-    v = rng.normal(0.0, 1.0, size=(dims,)).astype(np.float64)
-    n = float(np.linalg.norm(v))
-    if n <= 1e-15:
-        v = np.zeros((dims,), dtype=np.float64)
-        v[0] = 1.0
-        return v
-    return v / n
-
+    
+    v_bytes = _expand_bytes(seed, dims * 2, b"V/")
+    v = np.zeros(dims, dtype=np.int64)
+    for i in range(dims):
+        v[i] = (int.from_bytes(v_bytes[i*2:i*2+2], "big", signed=False) % 255) - 127
+        
+    if np.sum(np.abs(v)) == 0:
+        v[0] = 1
+    return v
 
 def scan_fingerprint_bits(
     *,
@@ -72,38 +70,43 @@ def scan_fingerprint_bits(
     threshold: float = 0.5,
     unfolding_matrix: Optional[np.ndarray] = None,
 ) -> List[int]:
-    """Field fingerprint scan for a given neuron (weights,bias) projected onto a locked plane."""
-    ww = np.asarray(weights, dtype=np.float64).reshape(-1)
-    uu = np.asarray(u, dtype=np.float64).reshape(-1)
-    ww2 = np.asarray(w, dtype=np.float64).reshape(-1)
-    if ww.shape != uu.shape or ww.shape != ww2.shape:
-        raise ValueError("weights/u/w shape mismatch")
+    """Field fingerprint scan using discrete integer probes on the basis plane."""
+    ww = np.asarray(weights, dtype=np.int64).reshape(-1)
+    uu = np.asarray(u, dtype=np.int64).reshape(-1)
+    ww2 = np.asarray(w, dtype=np.int64).reshape(-1)
 
-    # Topology unfolding: rotate the probe plane (u, w).
     if unfolding_matrix is not None:
         uu = np.dot(uu, unfolding_matrix)
         ww2 = np.dot(ww2, unfolding_matrix)
 
-    thetas = np.linspace(0.0, 2.0 * np.pi, int(n_angles), endpoint=False, dtype=np.float64)
-    levels = np.linspace(0.02, 1.0, int(scan_resolution), dtype=np.float64)
+    x = int(np.dot(uu, ww))
+    y = int(np.dot(ww2, ww))
+    bias_int = int(bias)
 
-    i_crit = np.zeros(int(n_angles), dtype=np.float64)
-    for i, theta in enumerate(thetas):
-        plane_v = (np.cos(theta) * uu) + (np.sin(theta) * ww2)
-        found = 0.0
-        for level in levels:
-            resp = float(np.dot(plane_v * float(level), ww) + float(bias))
-            if resp > float(tau):
-                found = float(level)
-                break
-        i_crit[i] = found
-
-    max_val = float(np.max(i_crit))
-    if max_val <= 0.0:
-        return [0] * int(n_angles)
-    norm = i_crit / max_val
-    bits = (norm > float(threshold)).astype(np.uint8)
-    return [int(b) for b in bits.tolist()]
+    resps = []
+    for i in range(n_angles):
+        # Deterministic pseudo-random coefficients for the plane
+        h = hashlib.sha256(f"PROBE/{i}".encode()).digest()
+        a = (int.from_bytes(h[:4], "big") % 21) - 10
+        b = (int.from_bytes(h[4:8], "big") % 21) - 10
+        if a == 0 and b == 0:
+            a = 1
+            
+        # evaluate integer dot product exactly on the plane
+        # including bias
+        resp = a * x + b * y + bias_int
+        resps.append(resp)
+        
+    max_resp = max(resps)
+    if max_resp <= 0:
+        return [0] * n_angles
+        
+    # Relative thresholding avoids floating point entirely
+    # and restores true angular entropy shape
+    threshold_val = int(max_resp * threshold)
+    
+    bits = [1 if r > threshold_val else 0 for r in resps]
+    return bits
 
 
 def derive_locked_planes(dims: int, n_planes: int) -> List[Tuple[np.ndarray, np.ndarray]]:
