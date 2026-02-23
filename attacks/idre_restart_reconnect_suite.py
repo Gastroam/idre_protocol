@@ -133,7 +133,7 @@ def _start_node(
         "--backend",
         "frozen",
     ]
-    import os
+
     env = os.environ.copy()
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env['PYTHONPATH'] = root_dir + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env else '')
