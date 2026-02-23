@@ -34,7 +34,6 @@ except ImportError:
     # If package is not installed, we rely on sys.path insert above
     from hive.node import FieldBoundNode
 
-
 class TestNode(FieldBoundNode):
     """
     Subclass of FieldBoundNode that captures received messages for verification.
@@ -70,8 +69,6 @@ class TestNode(FieldBoundNode):
                  
         return blob, reason, acks, tag
 
-
-
 # Helper to satisfy IDRE v3 Vocab Requirement
 def _get_dummy_vocab():
     try:
@@ -104,7 +101,6 @@ def setup_node(node_id: str, seed: int, port: int) -> TestNode:
         pepper="test_pepper",
     )
 
-
 def perform_handshake(node_a: TestNode, node_b: TestNode):
     print(f"--- Handshake: {node_a.node_id} <-> {node_b.node_id} ---")
     
@@ -131,7 +127,6 @@ def perform_handshake(node_a: TestNode, node_b: TestNode):
     assert ok_b, "B failed to verify A"
     print(f"[{node_b.node_id}] Verified A successfully.")
 
-
     # 2. B -> A Handshake (Mutual)
     print(f"[{node_b.node_id}] Requesting challenge from {node_a.node_id}...")
     chal_a = node_a.issue_challenge(peer_id=node_b.node_id)
@@ -153,7 +148,6 @@ def perform_handshake(node_a: TestNode, node_b: TestNode):
     print(f"[{node_a.node_id}] Verified B successfully.")
     
     print("--- Handshake Complete ---\n")
-
 
 def test_streaming():
     # Setup
@@ -206,7 +200,6 @@ def test_streaming():
     print("--- Stream Verification PASSED ---")
     print(f"Total A->B: {len(node_b.received_messages)}")
     print(f"Total B->A: {len(node_a.received_messages)}")
-
 
 if __name__ == "__main__":
     try:

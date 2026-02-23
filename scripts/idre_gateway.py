@@ -31,9 +31,6 @@ import aiohttp
 from aiohttp import web
 
 # Allow running as a script from within the standalone package folder
-_REPO_PARENT = str(Path(__file__).resolve().parents[2])
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
 
 try:
     from idre_clean.core.cell import pack_cell, unpack_cell
@@ -47,10 +44,8 @@ except ImportError:
         print("[!] Critical: IDRE Core modules not found. Is PYTHONPATH set?")
         sys.exit(1)
 
-
 DEFAULT_CELL_LEN = 1024
 DEFAULT_TICK_HZ = 10.0
-
 
 class AsyncGateway:
     def __init__(
@@ -326,7 +321,6 @@ class AsyncGateway:
 
             self._ingest_q.task_done()
 
-
 def main() -> int:
     # CLI Args parsing (same as original)
     ap = argparse.ArgumentParser()
@@ -359,7 +353,6 @@ def main() -> int:
         pass
     
     return 0
-
 
 if __name__ == "__main__":
     # Add _wire_q injection to class because I can't edit `__init__` in the class definition string easily 

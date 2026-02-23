@@ -2,20 +2,13 @@ import os
 import sys
 import unittest
 
-
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, root_dir)
-sys.path.insert(0, os.path.dirname(root_dir))
-
-from core.vocab_codec import Vocab
-from hive.node import FieldBoundNode
-
+from idre_clean.core.vocab_codec import Vocab
+from idre_clean.hive.node import FieldBoundNode
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]
     t2i = {t: i for i, t in enumerate(tokens)}
     return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
-
 
 class TestVerifyReqSecurity(unittest.TestCase):
     def setUp(self):
@@ -80,7 +73,6 @@ class TestVerifyReqSecurity(unittest.TestCase):
 
         self.assertFalse(ok)
         self.assertNotIn("A", self.node_b.timelines)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -28,14 +28,8 @@ if os.getcwd() not in sys.path:
 
 # 2. Add repo root relative to file
 # attacks/gradient_cracker.py -> .. -> idre_clean(root)
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-
 # 3. Add PARENT of repo root (to allow 'import idre_clean')
 parent_dir = os.path.abspath(os.path.join(root_dir, ".."))
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
 
 try:
     # Try fully qualified first (standard)

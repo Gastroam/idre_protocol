@@ -6,7 +6,6 @@ import pytest
 
 from idre_clean.core.vocab_codec import decode_text, encode_text, load_vocab
 
-
 def test_vocab_codec_roundtrip_exact(tmp_path) -> None:
     vocab_path = tmp_path / "vocab.json"
     tokens = ["Hello", " ", "world", "!", "\n", "Report", ":", "\t"]
@@ -18,7 +17,6 @@ def test_vocab_codec_roundtrip_exact(tmp_path) -> None:
     ok, reason, out = decode_text(blob, vocab, allow_literals=True)
     assert ok, reason
     assert out == s
-
 
 def test_vocab_codec_vocab_mismatch(tmp_path) -> None:
     p1 = tmp_path / "v1.json"
@@ -32,7 +30,6 @@ def test_vocab_codec_vocab_mismatch(tmp_path) -> None:
     ok, reason, _ = decode_text(blob, v2, allow_literals=True)
     assert not ok
     assert reason == "wrong_vocab"
-
 
 def test_vocab_codec_limits_and_malformed(tmp_path) -> None:
     vocab_path = tmp_path / "vocab.json"

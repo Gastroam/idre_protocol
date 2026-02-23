@@ -5,7 +5,6 @@ import struct
 from idre_clean.core.cell import pack_cell, unpack_cell
 from idre_clean.core.wire_bin import MAGIC8, pack_receive_envelope, pack_wire_message, unpack_receive_envelope, unpack_wire_message
 
-
 def test_wire_bin_roundtrip() -> None:
     msg = {
         "type": "DATA",
@@ -24,14 +23,12 @@ def test_wire_bin_roundtrip() -> None:
     out = unpack_wire_message(blob)
     assert out == msg
 
-
 def test_receive_envelope_roundtrip() -> None:
     msg = {"type": "DATA", "payload": [1, 2, 3]}
     blob = pack_receive_envelope("A", msg)
     prev, out = unpack_receive_envelope(blob)
     assert prev == "A"
     assert out == msg
-
 
 def test_cell_fixed_size_and_unpack() -> None:
     inner = b"hello"
@@ -41,7 +38,6 @@ def test_cell_fixed_size_and_unpack() -> None:
     out = unpack_cell(cell)
     assert out.inner == inner
 
-
 def test_wire_bin_header_len_cap_rejects() -> None:
     # Large header length should be rejected before slicing/parsing JSON.
     blob = MAGIC8 + struct.pack(">I", 0xFFFFFFFF) + struct.pack(">I", 0)
@@ -50,7 +46,6 @@ def test_wire_bin_header_len_cap_rejects() -> None:
         assert False, "expected error"
     except ValueError as exc:
         assert "header_too_large" in str(exc)
-
 
 def test_wire_bin_payload_len_cap_rejects() -> None:
     # Construct a minimal valid JSON header, then an oversized plen.

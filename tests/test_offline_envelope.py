@@ -5,7 +5,6 @@ from idre_clean.core.offline_envelope import open_envelope, seal
 from idre_clean.core.profile import compute_field_profile_id
 from idre_clean.core.vocab_codec import decode_text as vocab_decode_text, encode_text as vocab_encode_text, load_vocab
 
-
 def _default_profile() -> dict:
     return {
         "proto": "HIVE-P2P/1.2",
@@ -19,7 +18,6 @@ def _default_profile() -> dict:
         "threshold": 0.5,
         "anchor_weight": 80.0,
     }
-
 
 def test_offline_envelope_roundtrip_and_tamper() -> None:
     seed = 7245
@@ -40,7 +38,6 @@ def test_offline_envelope_roundtrip_and_tamper() -> None:
     ok2, reason2, _, _ = open_envelope(bits=bits, blob=bytes(tam), expected_field_profile_id=profile_id)
     assert not ok2
     assert reason2 in ("corrupt", "bad_payload_len", "bad_header_len")
-
 
 def test_offline_envelope_expired() -> None:
     seed = 7245
@@ -66,7 +63,6 @@ def test_offline_envelope_expired() -> None:
     )
     assert not ok
     assert reason == "expired"
-
 
 def test_offline_envelope_with_vocab_codec_roundtrip(tmp_path) -> None:
     seed = 7245

@@ -4,9 +4,6 @@ from pathlib import Path
 
 # Add repo root to sys.path (parent of idre_clean folder)
 # This assumes the script is located at .../idre_clean/scripts/hive_v12_node_server.py
-_REPO_PARENT = str(Path(__file__).resolve().parent.parent.parent)
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
 
 from idre_clean.hive.server import _ThreadedHTTPServer, Handler, TokenBucketLimiter
 

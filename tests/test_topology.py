@@ -4,7 +4,6 @@ import sys
 from pathlib import Path
 
 # Fix path: Add 'f:\' (parent of idre_clean) to sys.path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from idre_clean.hive.topology import TopologyManager
 from idre_clean.hive.substrate import FrozenSubstrate

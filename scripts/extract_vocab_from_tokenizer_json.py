@@ -18,12 +18,7 @@ from pathlib import Path
 
 import sys
 
-_REPO_PARENT = str(Path(__file__).resolve().parents[2])
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
-
 from idre_clean.core.vocab_store import write_vocab_bin
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -99,7 +94,6 @@ def main() -> int:
     outp.write_text(json.dumps(tokens, ensure_ascii=True, separators=(",", ":")), encoding="utf-8")
     print("WROTE", str(outp), "tokens", len(tokens))
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

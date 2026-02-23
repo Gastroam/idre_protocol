@@ -4,25 +4,18 @@ import os
 import sys
 import unittest
 
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, root_dir)
-sys.path.insert(0, os.path.dirname(root_dir))
-
-from hive.protocol import derive_route_tag, encrypt_header, decrypt_header
-from hive.node import FieldBoundNode
-from core.vocab_codec import Vocab
-
+from idre_clean.hive.protocol import derive_route_tag, encrypt_header, decrypt_header
+from idre_clean.hive.node import FieldBoundNode
+from idre_clean.core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]
     t2i = {t: i for i, t in enumerate(tokens)}
     return Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
 
-
 # Dummy field fingerprint bits
 BITS_A = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1]
 BITS_B = [0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0]
-
 
 class TestRouteTag(unittest.TestCase):
     """Test route tag derivation properties."""
@@ -45,7 +38,6 @@ class TestRouteTag(unittest.TestCase):
         tag_a = derive_route_tag(BITS_A, epoch=100)
         tag_b = derive_route_tag(BITS_B, epoch=100)
         self.assertNotEqual(tag_a, tag_b)
-
 
 class TestHeaderEncryption(unittest.TestCase):
     """Test header encrypt/decrypt roundtrip."""
@@ -90,7 +82,6 @@ class TestHeaderEncryption(unittest.TestCase):
 
         ok2, decrypted2 = decrypt_header(b"", BITS_A, "s1", 1)
         self.assertFalse(ok2)
-
 
 class TestEndToEndEncryptedHeaders(unittest.TestCase):
     """Full send/receive with encrypted headers enabled."""
@@ -174,7 +165,6 @@ class TestEndToEndEncryptedHeaders(unittest.TestCase):
         result = node_c.receive(pkt, "A")
         self.assertEqual(result["status"], "reject")
         self.assertEqual(result["reason"], "invalid_route_tag")
-
 
 if __name__ == "__main__":
     unittest.main()

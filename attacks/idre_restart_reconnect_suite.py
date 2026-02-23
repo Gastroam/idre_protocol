@@ -26,7 +26,6 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional, Tuple
 
-
 def _post(url: str, payload: Dict[str, Any], timeout: int = 20) -> Tuple[int, Dict[str, Any]]:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
@@ -42,7 +41,6 @@ def _post(url: str, payload: Dict[str, Any], timeout: int = 20) -> Tuple[int, Di
     except urllib.error.URLError as exc:
         return 0, {"error": "url_error", "reason": str(exc)}
 
-
 def _get(url: str, timeout: int = 10) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
     try:
@@ -57,7 +55,6 @@ def _get(url: str, timeout: int = 10) -> Tuple[int, Dict[str, Any]]:
     except urllib.error.URLError as exc:
         return 0, {"error": "url_error", "reason": str(exc)}
 
-
 def _wait_health(base: str, timeout_s: float = 10.0) -> Dict[str, Any]:
     t0 = time.time()
     last: Dict[str, Any] = {}
@@ -69,13 +66,11 @@ def _wait_health(base: str, timeout_s: float = 10.0) -> Dict[str, Any]:
         time.sleep(0.1)
     raise RuntimeError(f"health_timeout {base}: {last}")
 
-
 def _challenge(dst_base: str, peer_id: str) -> str:
     c, b = _post(dst_base + "/hive/v12/challenge", {"peer_id": str(peer_id)}, timeout=10)
     if c != 200 or not isinstance(b, dict) or not b.get("challenge"):
         raise RuntimeError(f"challenge_failed {dst_base}: {c} {b}")
     return str(b["challenge"])
-
 
 def _verify_create(src_base: str, session_id: str, eph: int, challenge: str) -> Dict[str, Any]:
     c, b = _post(
@@ -87,13 +82,11 @@ def _verify_create(src_base: str, session_id: str, eph: int, challenge: str) -> 
         raise RuntimeError(f"verify_create_failed {src_base}: {c} {b}")
     return dict(b["msg"])
 
-
 def _verify_process(dst_base: str, peer_id: str, msg: Dict[str, Any], ttl_s: float) -> Dict[str, Any]:
     c, b = _post(dst_base + "/hive/v12/verify_req/process", {"peer_id": str(peer_id), "msg": msg, "ttl_s": float(ttl_s)}, timeout=10)
     if c != 200 or not isinstance(b, dict):
         raise RuntimeError(f"verify_process_failed {dst_base}: {c} {b}")
     return b
-
 
 def _send(src_base: str, dst_node_id: str, content: str) -> Dict[str, Any]:
     c, b = _post(src_base + "/hive/v12/send", {"dst_node_id": str(dst_node_id), "content": str(content), "pad_bytes": 0}, timeout=20)
@@ -101,20 +94,17 @@ def _send(src_base: str, dst_node_id: str, content: str) -> Dict[str, Any]:
         raise RuntimeError(f"send_failed {src_base}: {c} {b}")
     return dict(b["msg"])
 
-
 def _recv(dst_base: str, prev_hop_id: str, msg: Dict[str, Any]) -> Dict[str, Any]:
     c, b = _post(dst_base + "/hive/v12/receive", {"prev_hop_id": str(prev_hop_id), "msg": msg}, timeout=20)
     if c != 200 or not isinstance(b, dict):
         raise RuntimeError(f"recv_failed {dst_base}: {c} {b}")
     return b
 
-
 def _hello(base: str) -> Dict[str, Any]:
     c, b = _post(base + "/hive/v12/hello", {}, timeout=10)
     if c != 200:
         raise RuntimeError(f"hello_failed {base}: {c} {b}")
     return b
-
 
 def _start_node(
     *,
@@ -145,7 +135,6 @@ def _start_node(
     ]
     return subprocess.Popen(args, cwd=repo_root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-
 def _stop_proc(p: Optional[subprocess.Popen]) -> None:
     if p is None:
         return
@@ -162,7 +151,6 @@ def _stop_proc(p: Optional[subprocess.Popen]) -> None:
         p.kill()
     except Exception:
         pass
-
 
 def _ports_available(ports: list[int]) -> bool:
     socks = []
@@ -182,14 +170,12 @@ def _ports_available(ports: list[int]) -> bool:
             except Exception:
                 pass
 
-
 def _pick_port_base(rng: random.Random, *, start: int, span: int, attempts: int = 100) -> int:
     for _ in range(int(attempts)):
         base = int(start) + int(rng.randrange(0, int(span)))
         if _ports_available([base, base + 1, base + 2]):
             return base
     raise RuntimeError("no_free_ports")
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -311,7 +297,6 @@ def main() -> int:
         _stop_proc(pa)
         _stop_proc(pb)
         _stop_proc(pe)
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

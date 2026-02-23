@@ -12,17 +12,12 @@ import zlib
 # for `import idre_clean.*` to work.
 from pathlib import Path
 
-_REPO_PARENT = str(Path(__file__).resolve().parents[2])
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
-
 from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
 from idre_clean.core.offline_envelope import open_envelope, seal
 from idre_clean.core.profile import compute_field_profile_id
 from idre_clean.core.vocab_codec import decode_text as vocab_decode_text, encode_text as vocab_encode_text, load_vocab
 from idre_clean.transports.idre_silence import IDRESilenceProtocol
 from idre_clean.transports.wav_io import read_wav_pcm16, write_wav_pcm16
-
 
 def _profile_dict(args: argparse.Namespace) -> dict:
     return {
@@ -37,7 +32,6 @@ def _profile_dict(args: argparse.Namespace) -> dict:
         "threshold": float(args.threshold),
         "anchor_weight": float(args.anchor_weight),
     }
-
 
 def _codec(args: argparse.Namespace) -> IDRESilenceProtocol:
     # Mirror idre_silence_cli defaults (stealth_100hz).
@@ -55,7 +49,6 @@ def _codec(args: argparse.Namespace) -> IDRESilenceProtocol:
         post_crossing_hold=32,
         fec_repeat=int(args.fec_repeat),
     )
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -267,7 +260,6 @@ def main() -> int:
         return 0
 
     return 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

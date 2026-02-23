@@ -21,13 +21,11 @@ import time
 import urllib.request
 from typing import Any
 
-
 def post(url: str, payload: dict[str, Any], timeout: int = 120) -> tuple[int, dict[str, Any]]:
     data = json.dumps(payload).encode('utf-8')
     req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'}, method='POST')
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.getcode(), json.loads(r.read().decode('utf-8'))
-
 
 def pack_message(msg: str) -> list[int]:
     b = msg.encode('utf-8')
@@ -39,14 +37,12 @@ def pack_message(msg: str) -> list[int]:
     out[2:2+len(b)] = b
     return [x for x in out]
 
-
 def unpack_message(indices: list[int]) -> str:
     if len(indices) != 256:
         raise ValueError('decoded_indices must be 256')
     n = ((indices[0] & 0xFF) << 8) | (indices[1] & 0xFF)
     raw = bytes((x & 0xFF) for x in indices[2:2+n])
     return raw.decode('utf-8', errors='replace')
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -174,7 +170,6 @@ def main() -> int:
         json.dump(out, f, indent=2)
     print('WROTE', path)
     return 0
-
 
 if __name__ == '__main__':
     raise SystemExit(main())

@@ -14,7 +14,6 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Tuple
 
-
 def _get_json(url: str, timeout: float = 5.0) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
     try:
@@ -28,7 +27,6 @@ def _get_json(url: str, timeout: float = 5.0) -> Tuple[int, Dict[str, Any]]:
             return int(exc.code), {"error": "http_error", "body": body}
     except Exception as exc:
         return 0, {"error": "exception", "detail": str(exc)}
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -59,7 +57,6 @@ def main() -> int:
     if int(worst) > int(args.warn_ms):
         return 2
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

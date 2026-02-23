@@ -7,11 +7,6 @@ import os
 # Add repo root to path
 # We need to add 'f:\idre_clean' (or whatever the root is) to sys.path
 # stored in current_dir/..
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(current_dir)
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-
 # Also need parent of root for 'idre_clean' package resolution if it expects that structure
 # But usually if we are in f:\idre_clean, import hive works.
 # But 'from idre_clean.core...' requires 'idre_clean' to be a package in path?
@@ -19,12 +14,9 @@ if root_dir not in sys.path:
 # Actually node.py does `from idre_clean.core...` so it expects `idre_clean` to be importable.
 # This means the directory CONTAINER of `idre_clean` must be in path.
 # So we need `root_dir/..`
-parent_dir = os.path.dirname(root_dir)
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
 
-from hive.node import FieldBoundNode
-from core.vocab_codec import Vocab
+from idre_clean.hive.node import FieldBoundNode
+from idre_clean.core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

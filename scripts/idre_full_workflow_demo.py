@@ -41,7 +41,6 @@ POINTERS_LEN = 256
 SIG_LEN = 64
 WIRE_SIZE = HEADER_LEN + POINTERS_LEN + SIG_LEN
 
-
 def _post(url: str, payload: dict[str, Any], timeout: int = 120) -> tuple[int, dict[str, Any]]:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
@@ -55,7 +54,6 @@ def _post(url: str, payload: dict[str, Any], timeout: int = 120) -> tuple[int, d
         except Exception:
             return exc.code, {"error": "http_error", "status": exc.code, "body": body}
 
-
 def _pack_message(msg: str) -> list[int]:
     b = msg.encode("utf-8")
     if len(b) > 254:
@@ -66,7 +64,6 @@ def _pack_message(msg: str) -> list[int]:
     out[2 : 2 + len(b)] = b
     return [x for x in out]
 
-
 def _unpack_message(indices: list[int]) -> str:
     if len(indices) != 256:
         raise ValueError("decoded_indices must be 256")
@@ -74,17 +71,14 @@ def _unpack_message(indices: list[int]) -> str:
     raw = bytes((x & 0xFF) for x in indices[2 : 2 + n])
     return raw.decode("utf-8", errors="replace")
 
-
 def _rand_hex(rng: random.Random, n: int) -> str:
     return bytes(rng.getrandbits(8) for _ in range(n)).hex()
-
 
 def _flip_byte(buf: bytearray, idx: int, mask: int = 0x5A) -> dict[str, Any]:
     before = buf[idx]
     buf[idx] ^= mask
     after = buf[idx]
     return {"index": idx, "before": before, "after": after, "xor": mask}
-
 
 def _tamper(packet_bytes: bytes, mode: str, rng: random.Random) -> tuple[bytes, dict[str, Any]]:
     if len(packet_bytes) != WIRE_SIZE:
@@ -112,14 +106,12 @@ def _tamper(packet_bytes: bytes, mode: str, rng: random.Random) -> tuple[bytes, 
     meta.update(_flip_byte(b, idx))
     return bytes(b), meta
 
-
 def _write(report: dict[str, Any]) -> str:
     os.makedirs("logs", exist_ok=True)
     out_path = os.path.join("logs", f"idre_full_workflow_{int(time.time())}.json")
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
     return out_path
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -281,7 +273,6 @@ def main() -> int:
     out_path = _write(report)
     print("WROTE", out_path)
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

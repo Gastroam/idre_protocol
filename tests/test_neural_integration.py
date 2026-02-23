@@ -3,14 +3,9 @@ import os
 import sys
 
 # Add repo root to sys.path
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, root_dir)
-# Add parent of repo root to sys.path to allow 'idre_clean' package import
-sys.path.insert(0, os.path.dirname(root_dir))
-
-from hive.node import FieldBoundNode
-from core.neural_codec import OP_ACK
-from core.vocab_codec import Vocab
+from idre_clean.hive.node import FieldBoundNode
+from idre_clean.core.neural_codec import OP_ACK
+from idre_clean.core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

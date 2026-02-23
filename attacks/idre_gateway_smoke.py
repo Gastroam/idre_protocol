@@ -23,11 +23,9 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
-
 REPO_PARENT = str(Path(__file__).resolve().parents[2])
 if REPO_PARENT not in sys.path:
     sys.path.insert(0, REPO_PARENT)
-
 
 def _free_port() -> int:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -35,7 +33,6 @@ def _free_port() -> int:
     _host, port = s.getsockname()
     s.close()
     return int(port)
-
 
 def _get(url: str, timeout: float = 5.0) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
@@ -50,7 +47,6 @@ def _get(url: str, timeout: float = 5.0) -> Tuple[int, Dict[str, Any]]:
             return int(exc.code), {"error": "http_error", "body": body}
     except Exception as exc:
         return 0, {"error": "exception", "detail": str(exc)}
-
 
 def _post_json(url: str, payload: Dict[str, Any], timeout: float = 10.0) -> Tuple[int, Dict[str, Any]]:
     data = json.dumps(payload).encode("utf-8")
@@ -67,7 +63,6 @@ def _post_json(url: str, payload: Dict[str, Any], timeout: float = 10.0) -> Tupl
     except Exception as exc:
         return 0, {"error": "exception", "detail": str(exc)}
 
-
 def _wait_health(base: str, timeout_s: float = 15.0) -> None:
     t0 = time.time()
     while True:
@@ -77,7 +72,6 @@ def _wait_health(base: str, timeout_s: float = 15.0) -> None:
         if time.time() - t0 > timeout_s:
             raise RuntimeError(f"health_timeout {base} last_code={code}")
         time.sleep(0.25)
-
 
 def _handshake(a: str, a_id: str, b: str, b_id: str, *, session_id: str, e_salt: int, ttl_s: float) -> None:
     # A -> B
@@ -118,7 +112,6 @@ def _handshake(a: str, a_id: str, b: str, b_id: str, *, session_id: str, e_salt:
     if not bool(b4.get("verified")):
         raise RuntimeError(f"verify_failed {a}: {b4}")
 
-
 def _reader_thread(p: subprocess.Popen, tag: str, lines_out: "list[str]") -> None:
     assert p.stdout is not None
     for raw in p.stdout:
@@ -127,7 +120,6 @@ def _reader_thread(p: subprocess.Popen, tag: str, lines_out: "list[str]") -> Non
         except Exception:
             continue
         lines_out.append(line)
-
 
 def main() -> int:
     repo_root = str(Path(__file__).resolve().parents[1])
@@ -283,7 +275,6 @@ def main() -> int:
         for p in (node_a_p, node_b_p):
             if p is not None and p.poll() is None:
                 p.terminate()
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

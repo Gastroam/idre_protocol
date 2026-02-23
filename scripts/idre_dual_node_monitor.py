@@ -20,7 +20,6 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-
 def _http_json(url: str, method: str = "GET", payload: dict[str, Any] | None = None, timeout: int = 20) -> tuple[dict[str, Any] | None, str | None]:
     data = None
     headers = {"Content-Type": "application/json"}
@@ -40,7 +39,6 @@ def _http_json(url: str, method: str = "GET", payload: dict[str, Any] | None = N
     except Exception as exc:  # pragma: no cover
         return None, f"error:{type(exc).__name__}:{exc}"
 
-
 @dataclass
 class NodeState:
     base: str
@@ -52,7 +50,6 @@ class NodeState:
     reflex_tokens: int = 0
     reflex_latency_ms: float = 0.0
     reflex_resonance: float = 0.0
-
 
 def _probe_node_health(node: NodeState) -> None:
     status_json, status_err = _http_json(f"{node.base}/status", timeout=10)
@@ -71,7 +68,6 @@ def _probe_node_health(node: NodeState) -> None:
     else:
         node.idre_enabled = bool((idre_json or {}).get("enabled", False))
         node.idre_reason = str((idre_json or {}).get("reason", (idre_json or {}).get("mode", "ok")))
-
 
 def _probe_reflex(node: NodeState, prompt: str, seed: int, max_tokens: int, temperature: float, timeout: int) -> None:
     payload = {
@@ -104,7 +100,6 @@ def _probe_reflex(node: NodeState, prompt: str, seed: int, max_tokens: int, temp
     node.reflex_resonance = float((resp or {}).get("resonance", 0.0) or 0.0)
     node.last_err = "-"
 
-
 def _render_plain(now: str, n1: NodeState, n2: NodeState, probe_match: str, probe_count: int) -> None:
     print("=" * 110)
     print(f"[{now}] probe_count={probe_count} reflex_hash_match={probe_match}")
@@ -114,7 +109,6 @@ def _render_plain(now: str, n1: NodeState, n2: NodeState, probe_match: str, prob
           f"lat_ms={n2.reflex_latency_ms:8.1f} tok={n2.reflex_tokens:4} res={n2.reflex_resonance:7.4f} err={n2.last_err}")
     print(f"A_hash={n1.reflex_hash}")
     print(f"B_hash={n2.reflex_hash}")
-
 
 def run(args: argparse.Namespace) -> int:
     node_a = NodeState(base=args.node_a.rstrip("/"))
@@ -147,7 +141,6 @@ def run(args: argparse.Namespace) -> int:
         print("\nStopped.")
         return 0
 
-
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Real-time dual-node monitor for IDRE/MTI server instances.")
     p.add_argument("--node-a", default="http://127.0.0.1:8814", help="Node A base URL")
@@ -164,7 +157,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="Prompt used in periodic reflex probe",
     )
     return p.parse_args(argv)
-
 
 if __name__ == "__main__":
     raise SystemExit(run(parse_args(sys.argv[1:])))

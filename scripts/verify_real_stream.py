@@ -13,7 +13,6 @@ Attacks:
 3. Leak Decryption (Eve has seed, decrypts traffic)
 """
 
-
 import sys
 import os
 import time
@@ -25,9 +24,6 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 # Add repo parent to sys.path to support 'import idre_clean'
-_REPO_PARENT = str(Path(__file__).resolve().parent.parent.parent)
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
 
 from idre_clean.hive.client import HiveClient
 # Import FieldBoundNode for Eve/Cracker logic locally
@@ -299,8 +295,6 @@ class EveDecryptor:
             traceback.print_exc()
             return f"[Error: {e}]"
 
-
-
 # --- Server Management ---
 # Calculate REPO_PARENT correctly. 
 # If this script is in f:\idre_clean\scripts\, 
@@ -491,8 +485,6 @@ class EveDecryptor:
         except Exception as e:
             traceback.print_exc()
             return f"[Error: {e}]"
-
-
 
 # --- Server Management ---
 # Calculate REPO_PARENT correctly. 

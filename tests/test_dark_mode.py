@@ -5,17 +5,11 @@ import sys
 import time
 import unittest
 
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, root_dir)
-sys.path.insert(0, os.path.dirname(root_dir))
-
-from hive.knock import create_knock, verify_knock, derive_knock_key, KNOCK_LEN
-from hive.gatekeeper import UDPGatekeeper
-
+from idre_clean.hive.knock import create_knock, verify_knock, derive_knock_key, KNOCK_LEN
+from idre_clean.hive.gatekeeper import UDPGatekeeper
 
 # Dummy field fingerprint bits for testing
 TEST_BITS = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1]
-
 
 class TestKnockRoundtrip(unittest.TestCase):
     """Test that a valid knock is accepted."""
@@ -28,7 +22,6 @@ class TestKnockRoundtrip(unittest.TestCase):
         valid, reason = verify_knock(knock, TEST_BITS, epoch=epoch)
         self.assertTrue(valid, f"Valid knock rejected: {reason}")
         self.assertEqual(reason, "")
-
 
 class TestInvalidKnockRejected(unittest.TestCase):
     """Test that garbage bytes are rejected."""
@@ -43,7 +36,6 @@ class TestInvalidKnockRejected(unittest.TestCase):
         valid, reason = verify_knock(b"too short", TEST_BITS)
         self.assertFalse(valid)
         self.assertEqual(reason, "bad_length")
-
 
 class TestExpiredKnockRejected(unittest.TestCase):
     """Test that a knock with an old timestamp is rejected."""
@@ -60,7 +52,6 @@ class TestExpiredKnockRejected(unittest.TestCase):
         # Tag is now invalid because it covers the old timestamp
         valid, reason = verify_knock(bytes(tampered), TEST_BITS, epoch=epoch)
         self.assertFalse(valid)
-
 
 class TestReplayRejected(unittest.TestCase):
     """Test that the Gatekeeper rejects replayed knocks."""
@@ -87,7 +78,6 @@ class TestReplayRejected(unittest.TestCase):
         self.assertEqual(action2, "knock_rejected:replay")
         self.assertFalse(fwd2)
 
-
 class TestAllowlistExpiry(unittest.TestCase):
     """Test that the allowlist entry expires after TTL."""
 
@@ -112,7 +102,6 @@ class TestAllowlistExpiry(unittest.TestCase):
         # Should no longer be allowed
         self.assertFalse(gk.is_allowed(addr))
 
-
 class TestKnockKeyEpochRotation(unittest.TestCase):
     """Test that knock keys change with epoch."""
 
@@ -128,7 +117,6 @@ class TestKnockKeyEpochRotation(unittest.TestCase):
         wrong_bits = [0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0]
         valid, reason = verify_knock(knock, wrong_bits, epoch=epoch)
         self.assertFalse(valid, "Knock from different field must be rejected")
-
 
 class TestGatekeeperForwarding(unittest.TestCase):
     """Test that allowed IPs get their packets forwarded."""
@@ -217,7 +205,6 @@ class TestKnockRateLimit(unittest.TestCase):
         k2 = create_knock(TEST_BITS)
         a2, _ = gk.handle_packet(k2, addr_b)
         self.assertEqual(a2, "knock_accepted")
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -29,11 +29,6 @@ import struct
 from typing import Dict, Any
 
 # --- Path Setup ---
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-sys.path.append(os.path.dirname(__file__))
-
 try:
     from idre_clean.hive.node import FieldBoundNode
     from idre_clean.hive.utils import canonical_json

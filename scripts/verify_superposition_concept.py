@@ -13,11 +13,8 @@ from pathlib import Path
 # _REPO_ROOT is f:/idre_clean
 _REPO_ROOT = str(Path(__file__).resolve().parents[1])
 # _REPO_PARENT is f:/
-_REPO_PARENT = str(Path(__file__).resolve().parents[2])
 
 # We need _REPO_PARENT in sys.path to import `idre_clean.core...`
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
 # We also need _REPO_ROOT for local module resolution if needed
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)

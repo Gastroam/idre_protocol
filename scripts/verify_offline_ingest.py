@@ -6,9 +6,6 @@ import sys
 
 # Add repo root to sys.path
 from pathlib import Path
-_REPO_PARENT = str(Path(__file__).resolve().parents[2])
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
 
 from idre_clean.core.frozen_physics import compute_fingerprint_bits_frozen_v12
 from idre_clean.core.offline_envelope import seal
@@ -94,7 +91,6 @@ def generate_envelope(seed: int, plaintext: str) -> bytes:
         field_profile_id=pid,
         expires_in_ms=60000
     )
-
 
 def test_offline_ingest():
     cmd = [

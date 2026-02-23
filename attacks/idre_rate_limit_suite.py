@@ -23,7 +23,6 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Optional, Tuple
 
-
 def _post(url: str, payload: Dict[str, Any], timeout: int = 10) -> Tuple[int, Dict[str, Any]]:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
@@ -39,7 +38,6 @@ def _post(url: str, payload: Dict[str, Any], timeout: int = 10) -> Tuple[int, Di
     except urllib.error.URLError as exc:
         return 0, {"error": "url_error", "reason": str(exc)}
 
-
 def _get(url: str, timeout: int = 5) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
     try:
@@ -54,7 +52,6 @@ def _get(url: str, timeout: int = 5) -> Tuple[int, Dict[str, Any]]:
     except urllib.error.URLError as exc:
         return 0, {"error": "url_error", "reason": str(exc)}
 
-
 def _wait_health(base: str, timeout_s: float = 10.0) -> None:
     t0 = time.time()
     last = None
@@ -65,7 +62,6 @@ def _wait_health(base: str, timeout_s: float = 10.0) -> None:
             return
         time.sleep(0.1)
     raise RuntimeError(f"health_timeout {base}: {last}")
-
 
 def _start_node(
     *,
@@ -96,7 +92,6 @@ def _start_node(
     ]
     return subprocess.Popen(args, cwd=repo_root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-
 def _stop_proc(p: Optional[subprocess.Popen]) -> None:
     if p is None:
         return
@@ -114,7 +109,6 @@ def _stop_proc(p: Optional[subprocess.Popen]) -> None:
     except Exception:
         pass
 
-
 def _port_available(port: int) -> bool:
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -129,14 +123,12 @@ def _port_available(port: int) -> bool:
             pass
         return False
 
-
 def _pick_port(rng: random.Random, *, start: int, span: int, attempts: int = 200) -> int:
     for _ in range(int(attempts)):
         port = int(start) + int(rng.randrange(0, int(span)))
         if _port_available(port):
             return port
     raise RuntimeError("no_free_ports")
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -205,7 +197,6 @@ def main() -> int:
         return 0
     finally:
         _stop_proc(p)
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

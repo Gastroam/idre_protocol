@@ -25,14 +25,12 @@ from pathlib import Path
 from typing import Any, Dict, Tuple
 import threading
 
-
 def _free_port() -> int:
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("127.0.0.1", 0))
     _host, port = s.getsockname()
     s.close()
     return int(port)
-
 
 def _get(url: str, timeout: float = 5.0) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
@@ -47,7 +45,6 @@ def _get(url: str, timeout: float = 5.0) -> Tuple[int, Dict[str, Any]]:
             return int(exc.code), {"error": "http_error", "body": body}
     except Exception as exc:
         return 0, {"error": "exception", "detail": str(exc)}
-
 
 def _post_json(url: str, payload: Dict[str, Any], timeout: float = 15.0) -> Tuple[int, Dict[str, Any], float]:
     data = json.dumps(payload).encode("utf-8")
@@ -68,7 +65,6 @@ def _post_json(url: str, payload: Dict[str, Any], timeout: float = 15.0) -> Tupl
         dt_ms = (time.perf_counter() - t0) * 1000.0
         return 0, {"error": "exception", "detail": str(exc)}, float(dt_ms)
 
-
 def _wait_health(base: str, timeout_s: float = 20.0) -> None:
     t0 = time.time()
     while True:
@@ -78,7 +74,6 @@ def _wait_health(base: str, timeout_s: float = 20.0) -> None:
         if time.time() - t0 > timeout_s:
             raise RuntimeError(f"health_timeout {base} last_code={code}")
         time.sleep(0.25)
-
 
 def _handshake(a: str, a_id: str, b: str, b_id: str, *, session_id: str, e_salt: int, ttl_s: float) -> Dict[str, Any]:
     steps: Dict[str, Any] = {}
@@ -117,7 +112,6 @@ def _handshake(a: str, a_id: str, b: str, b_id: str, *, session_id: str, e_salt:
 
     return steps
 
-
 def _reader_thread(p: subprocess.Popen, lines_out: "list[str]") -> None:
     if p.stdout is None:
         return
@@ -126,7 +120,6 @@ def _reader_thread(p: subprocess.Popen, lines_out: "list[str]") -> None:
             lines_out.append(raw.decode("utf-8", errors="replace").rstrip("\r\n"))
         except Exception:
             continue
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -325,7 +318,6 @@ def main() -> int:
                     p.terminate()
             except Exception:
                 pass
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

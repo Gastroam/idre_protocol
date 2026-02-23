@@ -7,7 +7,6 @@ import pytest
 pytest.importorskip("idre_clean.transports.idre_silence")
 from idre_clean.transports.idre_silence import IDRESilenceProtocol
 
-
 def test_silence_bytes_roundtrip() -> None:
     # Keep the payload small and the profile fast so CI runs quickly.
     proto = IDRESilenceProtocol(symbol_cycles=1, preamble_cycles=6, fec_repeat=3)
@@ -15,7 +14,6 @@ def test_silence_bytes_roundtrip() -> None:
     audio = proto.encode_bytes(payload)
     out = proto.decode_bytes(audio)
     assert out == payload
-
 
 def test_silence_decode_rejects_garbage() -> None:
     proto = IDRESilenceProtocol(fec_repeat=3)

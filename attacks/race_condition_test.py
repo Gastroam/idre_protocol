@@ -8,10 +8,6 @@ import threading
 
 from pathlib import Path
 
-_REPO_PARENT = str(Path(__file__).resolve().parents[1])
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
-
 PORT_A = 8920
 PORT_B = 8921
 SEED = 7245

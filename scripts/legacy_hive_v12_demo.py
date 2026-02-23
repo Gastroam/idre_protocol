@@ -20,10 +20,8 @@ import os
 import time
 import pathlib
 
-
 def _ts() -> int:
     return int(time.time())
-
 
 def main() -> int:
     root = pathlib.Path(__file__).resolve().parents[1]
@@ -42,7 +40,6 @@ def main() -> int:
     # Otherwise the backup config anchors both (7245, 8888) and can make them identical.
     from src.mti_config import MTIConfig  # type: ignore
     MTIConfig.__dataclass_fields__['idre_anchor_seeds'].default = (7245,)
-
 
     out: dict = {
         "timestamp": _ts(),
@@ -66,7 +63,6 @@ def main() -> int:
     eve.fingerprint_B = adv.generate_fingerprint_B(8888)
     import hashlib
     eve.field_hash = hashlib.sha256(eve.fingerprint_B.tobytes()).hexdigest()[:16]
-
 
     step(
         "node_init",
@@ -141,8 +137,6 @@ def main() -> int:
 
     return 0 if ok else 2
 
-
 if __name__ == "__main__":
     raise SystemExit(main())
-
 

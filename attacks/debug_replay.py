@@ -1,6 +1,4 @@
 import sys
-sys.path.append('F:\\idre_clean')
-sys.path.append('F:\\idre_clean\\scripts')
 
 try:
     from scripts import demo_api

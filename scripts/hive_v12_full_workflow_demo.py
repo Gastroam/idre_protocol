@@ -26,7 +26,6 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Tuple
 
-
 def _get(url: str, timeout: int = 30) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
     try:
@@ -38,7 +37,6 @@ def _get(url: str, timeout: int = 30) -> Tuple[int, Dict[str, Any]]:
             return exc.code, json.loads(body)
         except Exception:
             return exc.code, {"error": "http_error", "status": exc.code, "body": body}
-
 
 def _post(url: str, payload: Dict[str, Any], timeout: int = 60) -> Tuple[int, Dict[str, Any]]:
     data = json.dumps(payload).encode("utf-8")
@@ -53,11 +51,9 @@ def _post(url: str, payload: Dict[str, Any], timeout: int = 60) -> Tuple[int, Di
         except Exception:
             return exc.code, {"error": "http_error", "status": exc.code, "body": body}
 
-
 def _sha256_json(obj: Any) -> str:
     blob = json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
-
 
 def _append_noise(msg: Dict[str, Any], n: int, rng: random.Random) -> Dict[str, Any]:
     out = copy.deepcopy(msg)
@@ -65,7 +61,6 @@ def _append_noise(msg: Dict[str, Any], n: int, rng: random.Random) -> Dict[str, 
     if isinstance(payload, list):
         payload.extend([rng.getrandbits(8) for _ in range(max(0, int(n)))])
     return out
-
 
 def _flip_inband(msg: Dict[str, Any], rng: random.Random) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     """Flip a byte inside the framed ciphertext region.
@@ -93,19 +88,16 @@ def _flip_inband(msg: Dict[str, Any], rng: random.Random) -> Tuple[Dict[str, Any
     payload[idx] = (before ^ 0x5A) & 0xFF
     return out, {"index": idx, "before": before, "after": int(payload[idx]), "xor": 0x5A, "ct_len": ct_len}
 
-
 def _tamper_header(msg: Dict[str, Any], field: str, new_value: Any) -> Dict[str, Any]:
     out = copy.deepcopy(msg)
     out[field] = new_value
     return out
-
 
 def _hello(base: str) -> Dict[str, Any]:
     code, body = _post(base + "/hive/v12/hello", {}, timeout=10)
     if code != 200:
         raise RuntimeError(f"hello_failed {base}: {code} {body}")
     return body
-
 
 def _handshake(a: str, a_id: str, b: str, b_id: str, *, session_id: str, e_salt: int, ttl_s: float) -> Dict[str, Any]:
     # A -> B
@@ -141,7 +133,6 @@ def _handshake(a: str, a_id: str, b: str, b_id: str, *, session_id: str, e_salt:
         "b_to_a": {"create": {"code": c3, "ok": b3.get("status") == "ok"}, "process": b4},
     }
 
-
 def _send(a: str, dst_id: str, content: str, pad_bytes: int) -> Dict[str, Any]:
     c, b = _post(a + "/hive/v12/send", {"dst_node_id": dst_id, "content": content, "pad_bytes": pad_bytes}, timeout=60)
     if c != 200:
@@ -151,13 +142,11 @@ def _send(a: str, dst_id: str, content: str, pad_bytes: int) -> Dict[str, Any]:
         raise RuntimeError(f"send_bad_msg {a}: {b}")
     return msg
 
-
 def _receive(b: str, prev_id: str, msg: Dict[str, Any]) -> Dict[str, Any]:
     c, body = _post(b + "/hive/v12/receive", {"prev_hop_id": prev_id, "msg": msg}, timeout=60)
     if c != 200:
         raise RuntimeError(f"receive_failed {b}: {c} {body}")
     return body
-
 
 def _write_log(report: Dict[str, Any]) -> str:
     os.makedirs("logs", exist_ok=True)
@@ -165,7 +154,6 @@ def _write_log(report: Dict[str, Any]) -> str:
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
     return out_path
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -324,7 +312,6 @@ def main() -> int:
     print("WROTE", out_path)
 
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

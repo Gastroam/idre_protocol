@@ -23,7 +23,6 @@ import urllib.error
 import urllib.request
 from typing import Any, Dict, Tuple
 
-
 def _get(url: str, timeout: int = 20) -> Tuple[int, Dict[str, Any]]:
     req = urllib.request.Request(url, method="GET")
     try:
@@ -43,7 +42,6 @@ def _get(url: str, timeout: int = 20) -> Tuple[int, Dict[str, Any]]:
         return 0, {"error": "url_error", "reason": str(exc)}
     except Exception as exc:
         return 0, {"error": "exception", "type": type(exc).__name__, "detail": str(exc)}
-
 
 def _post(url: str, payload: Dict[str, Any], timeout: int = 60) -> Tuple[int, Dict[str, Any]]:
     data = json.dumps(payload).encode("utf-8")
@@ -77,11 +75,9 @@ def _timed_post(url: str, payload: Dict[str, Any], timeout: int = 60) -> Dict[st
     dt_ms = (time.perf_counter() - t0) * 1000.0
     return {"code": code, "body": body, "latency_ms": dt_ms}
 
-
 def _sha256_json(obj: Any) -> str:
     blob = json.dumps(obj, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
-
 
 def _write(report: Dict[str, Any]) -> str:
     os.makedirs("logs", exist_ok=True)
@@ -90,13 +86,11 @@ def _write(report: Dict[str, Any]) -> str:
         json.dump(report, f, indent=2)
     return out_path
 
-
 def _hello(base: str) -> Dict[str, Any]:
     code, body = _post(base + "/hive/v12/hello", {}, timeout=10)
     if code != 200:
         raise RuntimeError(f"hello_failed {base}: {code} {body}")
     return body
-
 
 def _handshake(a: str, a_id: str, b: str, b_id: str, session_id: str, e_salt: int, ttl_s: float) -> Dict[str, Any]:
     # a -> b
@@ -133,7 +127,6 @@ def _handshake(a: str, a_id: str, b: str, b_id: str, session_id: str, e_salt: in
             "process": {"code": c4, "body": b4},
         },
     }
-
 
 def _handshake_tamper(a: str, a_id: str, b: str, session_id: str, e_salt: int, ttl_s: float) -> Dict[str, Any]:
     """
@@ -186,7 +179,6 @@ def _handshake_tamper(a: str, a_id: str, b: str, session_id: str, e_salt: int, t
 
     return out
 
-
 def _send(a: str, dst_id: str, content: str, pad_bytes: int = 0) -> Dict[str, Any]:
     c, b = _post(a + "/hive/v12/send", {"dst_node_id": dst_id, "content": content, "pad_bytes": pad_bytes}, timeout=60)
     if c != 200:
@@ -195,7 +187,6 @@ def _send(a: str, dst_id: str, content: str, pad_bytes: int = 0) -> Dict[str, An
     if not isinstance(msg, dict):
         raise RuntimeError(f"send_bad_msg {a}: {b}")
     return msg
-
 
 def _send_with_time(
     a: str,
@@ -222,13 +213,11 @@ def _send_with_time(
         raise RuntimeError(f"send_bad_msg {a}: {b}")
     return msg
 
-
 def _recv(b: str, prev_id: str, msg: Dict[str, Any]) -> Dict[str, Any]:
     res = _timed_post(b + "/hive/v12/receive", {"prev_hop_id": prev_id, "msg": msg}, timeout=60)
     if int(res["code"]) != 200:
         raise RuntimeError(f"recv_failed {b}: {res['code']} {res['body']}")
     return res["body"]
-
 
 def _mutate_payload_append(msg: Dict[str, Any], n: int, rng: random.Random) -> Dict[str, Any]:
     out = copy.deepcopy(msg)
@@ -237,14 +226,12 @@ def _mutate_payload_append(msg: Dict[str, Any], n: int, rng: random.Random) -> D
         p.extend([rng.getrandbits(8) for _ in range(int(n))])
     return out
 
-
 def _mutate_payload_truncate(msg: Dict[str, Any], n: int) -> Dict[str, Any]:
     out = copy.deepcopy(msg)
     p = out.get("payload")
     if isinstance(p, list) and n > 0 and len(p) > n:
         out["payload"] = p[: len(p) - int(n)]
     return out
-
 
 def _mutate_payload_flip_inband(msg: Dict[str, Any], rng: random.Random) -> Dict[str, Any]:
     out = copy.deepcopy(msg)
@@ -260,12 +247,10 @@ def _mutate_payload_flip_inband(msg: Dict[str, Any], rng: random.Random) -> Dict
     out["payload"][idx] = (int(out["payload"][idx]) ^ 0x5A) & 0xFF
     return out
 
-
 def _mutate_header(msg: Dict[str, Any], field: str, value: Any) -> Dict[str, Any]:
     out = copy.deepcopy(msg)
     out[field] = value
     return out
-
 
 def main() -> int:
     ap = argparse.ArgumentParser()
@@ -528,7 +513,6 @@ def main() -> int:
     print("hdr_tamper", report["steps"]["header_tamper_dst_recv"].get("result"))
     print("replay_2", report["steps"]["replay_2"].get("result"))
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

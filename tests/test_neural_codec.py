@@ -5,10 +5,6 @@ import sys
 import struct
 
 # Add repo root to sys.path
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-
 # Try importing as 'core.neural_codec' since we are running from root
 try:
     from core.neural_codec import (

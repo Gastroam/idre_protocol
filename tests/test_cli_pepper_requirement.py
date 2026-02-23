@@ -4,13 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, root_dir)
-sys.path.insert(0, os.path.dirname(root_dir))
-
-from hive.cli import configure_node_from_args, get_node_argparser
-
+from idre_clean.hive.cli import configure_node_from_args, get_node_argparser
 
 class TestCliPepperRequirement(unittest.TestCase):
     def _base_args(self):
@@ -44,7 +38,6 @@ class TestCliPepperRequirement(unittest.TestCase):
         with patch.dict(os.environ, {"IDRE_PEPPER": "env_test_pepper"}, clear=True):
             node = configure_node_from_args(args)
         self.assertEqual(node.pepper, "env_test_pepper")
-
 
 if __name__ == "__main__":
     unittest.main()

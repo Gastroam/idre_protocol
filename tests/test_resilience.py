@@ -5,17 +5,9 @@ import os
 import sys
 
 # Fix Path for idre_clean package resolution
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(current_dir)
-if root_dir not in sys.path:
-    sys.path.append(root_dir)
-parent_dir = os.path.dirname(root_dir)
-if parent_dir not in sys.path:
-    sys.path.append(parent_dir)
-
-from hive.node import FieldBoundNode, canonical_json
-from core.session import HiveSession
-from core.vocab_codec import Vocab
+from idre_clean.hive.node import FieldBoundNode, canonical_json
+from idre_clean.core.session import HiveSession
+from idre_clean.core.vocab_codec import Vocab
 import struct
 
 def _create_dummy_vocab():

@@ -11,11 +11,9 @@ import sys
 # The structure is f:\idre_clean\hive\node.py using `from idre_clean.core...`
 # This implies `idre_clean` IS a package.
 # So `f:\` must be in sys.path.
-sys.path.append("f:\\")
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from hive.node import FieldBoundNode
-from core.vocab_codec import Vocab
+from idre_clean.hive.node import FieldBoundNode
+from idre_clean.core.vocab_codec import Vocab
 
 def _create_dummy_vocab():
     tokens = ["<pad>", "<a>", "<b>", "<c>"]

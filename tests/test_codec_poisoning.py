@@ -3,11 +3,7 @@ import os
 import sys
 
 # Add repo root to sys.path
-root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, root_dir)
-sys.path.insert(0, os.path.dirname(root_dir))
-
-from core.neural_codec import NeuralCodec, MAX_ENTRIES
+from idre_clean.core.neural_codec import NeuralCodec, MAX_ENTRIES
 
 class TestCodecPoisoning(unittest.TestCase):
     def setUp(self):

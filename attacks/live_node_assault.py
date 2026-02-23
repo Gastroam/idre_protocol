@@ -147,7 +147,6 @@ def phase_1_timing_side_channel():
     else:
         log_succ("SUCCESS: MAC verification appears constant-time (within network jitter).")
 
-
 # -------------------------------------------------------------------
 # Phase 2: Protocol Logic & State Disruption
 # -------------------------------------------------------------------

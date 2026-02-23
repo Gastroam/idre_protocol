@@ -22,7 +22,6 @@ import urllib.request
 from datetime import datetime
 from typing import Any
 
-
 def http_json(url: str, method: str = "GET", payload: dict[str, Any] | None = None, timeout: int = 30) -> tuple[int, dict[str, Any] | str | None, str | None]:
     data = None
     headers = {"Content-Type": "application/json"}
@@ -49,7 +48,6 @@ def http_json(url: str, method: str = "GET", payload: dict[str, Any] | None = No
     except Exception as exc:
         return 0, None, f"error:{type(exc).__name__}:{exc}"
 
-
 def http_raw_invalid_json(url: str, timeout: int = 15) -> tuple[int, str]:
     req = urllib.request.Request(url=url, method="POST", data=b"{invalid_json", headers={"Content-Type": "application/json"})
     try:
@@ -64,14 +62,11 @@ def http_raw_invalid_json(url: str, timeout: int = 15) -> tuple[int, str]:
     except Exception as exc:
         return 0, f"error:{type(exc).__name__}:{exc}"
 
-
 def sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
-
 def now() -> str:
     return datetime.utcnow().isoformat(timespec="seconds") + "Z"
-
 
 def build_payload(prompt: str, seed: int, max_tokens: int, temperature: float) -> dict[str, Any]:
     return {
@@ -85,7 +80,6 @@ def build_payload(prompt: str, seed: int, max_tokens: int, temperature: float) -
         "integer_communication": False,
         "timeout": 120,
     }
-
 
 def one_probe(base: str, payload: dict[str, Any], timeout: int = 150) -> dict[str, Any]:
     t0 = time.perf_counter()
@@ -105,7 +99,6 @@ def one_probe(base: str, payload: dict[str, Any], timeout: int = 150) -> dict[st
         )
     return out
 
-
 def check_up(base: str) -> dict[str, Any]:
     s_code, s_body, s_err = http_json(f"{base}/status", timeout=10)
     i_code, i_body, i_err = http_json(f"{base}/api/idre/health", timeout=10)
@@ -116,14 +109,12 @@ def check_up(base: str) -> dict[str, Any]:
         "idre": i_body if isinstance(i_body, dict) else {"raw": i_body, "err": i_err},
     }
 
-
 def phase_invalid_json(nodes: list[str]) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for n in nodes:
         code, body = http_raw_invalid_json(f"{n}/v1/local/reflex", timeout=15)
         out[n] = {"code": code, "body_preview": body[:160]}
     return out
-
 
 def phase_oversize_prompt(nodes: list[str], size: int, seed: int) -> dict[str, Any]:
     huge = "Q" * size
@@ -137,7 +128,6 @@ def phase_oversize_prompt(nodes: list[str], size: int, seed: int) -> dict[str, A
             "keys": sorted(list(body.keys())) if isinstance(body, dict) else None,
         }
     return out
-
 
 def phase_pair_storm(node_a: str, node_b: str, rounds: int, workers: int, prompt: str, seed: int, max_tokens: int, temperature: float) -> dict[str, Any]:
     payload = build_payload(prompt, seed=seed, max_tokens=max_tokens, temperature=temperature)
@@ -181,7 +171,6 @@ def phase_pair_storm(node_a: str, node_b: str, rounds: int, workers: int, prompt
 
     return stats
 
-
 def phase_replay(node: str, rounds: int, prompt: str, seed: int, max_tokens: int, temperature: float) -> dict[str, Any]:
     payload = build_payload(prompt, seed=seed, max_tokens=max_tokens, temperature=temperature)
     hashes: list[str] = []
@@ -202,7 +191,6 @@ def phase_replay(node: str, rounds: int, prompt: str, seed: int, max_tokens: int
         "hash_sample": unique[:5],
     }
 
-
 def parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Attack harness for dual MTI-EVO nodes.")
     p.add_argument("--node-a", default="http://127.0.0.1:8814")
@@ -219,7 +207,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default="Explain in 5 precise bullets how quantum decoherence differs from wavefunction collapse.",
     )
     return p.parse_args(argv)
-
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
@@ -285,7 +272,6 @@ def main(argv: list[str]) -> int:
 
     print(f"report={out_path}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))

@@ -86,7 +86,6 @@ class ReconModule:
         feats = body.get("features", {})
         return f"HiveV1.2/planes={feats.get('planes')}/backend={feats.get('backend')}"
 
-
 class FuzzModule:
     """Mutates payloads to crash parser or find logic bugs."""
     
@@ -147,7 +146,6 @@ class FuzzModule:
             
         return p
 
-
 class CryptoModule:
     """Analyzes cryptographic implementation flaws."""
     
@@ -197,7 +195,6 @@ class CryptoModule:
             # Flip byte in ciphertext (index 1)
             p[1] ^= 0xFF
         return c
-
 
 # --- Main ---
 

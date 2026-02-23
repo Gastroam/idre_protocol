@@ -5,10 +5,6 @@ import concurrent.futures
 import requests
 from pathlib import Path
 
-_REPO_PARENT = str(Path(__file__).resolve().parents[2])
-if _REPO_PARENT not in sys.path:
-    sys.path.insert(0, _REPO_PARENT)
-
 TARGET_URL = "https://idre.mti-evo.online"  # Live Node URL
 
 def run_live_race_test(target_url):
