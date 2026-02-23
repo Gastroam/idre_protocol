@@ -25,6 +25,21 @@ python attacks\idre_http_attack_suite.py --node-a http://127.0.0.1:8890 --node-b
 
 It writes a JSON report under `logs/`.
 
+## Cryptanalysis Suite (Permute-XOR Testing)
+
+A dedicated suite for Chosen-Plaintext Attacks (CPA) and empirical randomness testing of the custom IDRE Permute-XOR cipher.
+
+```powershell
+python attacks\cryptanalysis\main.py
+```
+
+This suite treats the cipher mathematically and tests for cryptographic strength:
+- **`collect.py`**: Interacts with the live node to gather thousands of controlled ciphertexts (uniform bytes, counters, random combinations).
+- **`stats.py`**: NIST randomness validations (Monobit, Runs, Autocorrelation) and Chi-Square uniform distribution checks.
+- **`differential.py`**: Computes Hamming distance avalanche metrics exactly across identical plaintexts.
+- **`keystream.py` & `permutation.py`**: Proves CPA resistance against keystream recovery and permutation matrix unmasking.
+- **`ml.py`**: Extends validation by training a Scikit-Learn Random Forest model to distinguish the extracted keystreams against `os.urandom()` true hardware noise.
+
 ## Extra Suites
 
 Gateway smoke test (spawns 2 nodes + 2 gateways locally, then delivers a message through fixed-size cells):

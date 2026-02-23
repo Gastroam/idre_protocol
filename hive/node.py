@@ -503,8 +503,16 @@ class FieldBoundNode:
         # Tag
         tag = hmac.new(key, (aad or b"") + bytes(int(x) & 0xFF for x in ct_ints), hashlib.sha256).digest()
         
+        # ---------------------------------------------------------
+        MAC_LEN = 32
+        base_len = 1 + len(ct_ints) + MAC_LEN
+        CELL_SIZE = 256
+        remainder = base_len % CELL_SIZE
+        dynamic_pad = (CELL_SIZE - remainder) if remainder else 0
+        total_pad = pad_bytes + dynamic_pad
+
         # Frame
-        return frame_payload(ct_ints, tag, pad_bytes=pad_bytes), tag
+        return frame_payload(ct_ints, tag, pad_bytes=total_pad), tag
 
     def decrypt_message(
         self,
@@ -550,7 +558,8 @@ class FieldBoundNode:
     ) -> Tuple[Optional[bytes], str, List[bytes], bytes]:
         from .crypto import decrypt_stream as _decrypt_stream
         
-        if len(payload) < 1 + 8 + 8 + 32: # header + mac
+        MAC_LEN = 32
+        if len(payload) < 1 + MAC_LEN:
              return None, "payload_too_short", [], b""
         
         # Extract fields
@@ -715,6 +724,8 @@ class FieldBoundNode:
             ttl_s=3600.0,
             ephemeral_salt=ephemeral_salt,
             chain_hash=chain_hash,
+            out_seq=1,
+            in_seq=1,
             codec=codec,
             ratchet_key=ratchet_key
         )

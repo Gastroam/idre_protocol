@@ -50,6 +50,7 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
     ap.add_argument("--enable-plasticity", action=argparse.BooleanOptionalAction, default=False)
     ap.add_argument("--freeze-field", action=argparse.BooleanOptionalAction, default=False)
     ap.add_argument("--healing-mode", type=str, default="none")
+    ap.add_argument("--pepper", type=str, default="", help="MANDATORY for production. HMAC pepper for weight hiding (§2.2).")
     ap.add_argument("--backend", type=str, default="lattice")
     
     # Backend / Mode
@@ -125,6 +126,7 @@ def configure_node_from_args(args) -> FieldBoundNode:
         max_plaintext_bytes=int(args.max_plaintext_bytes),
         plasticity=bool(args.enable_plasticity),
         healing_mode=str(args.healing_mode),
+        pepper=str(getattr(args, 'pepper', '')),
     )
     
     # Protocol Limits

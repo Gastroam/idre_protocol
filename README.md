@@ -167,6 +167,7 @@ Each layer is independently composable — operators choose depth based on their
 | `scripts/verify_replay_clone.py` | Determinism proof: perfect clone stays in sync (forward secrecy requires packet loss) |
 | `attacks/idre_http_attack_suite.py` | Black-box HTTP attack harness |
 | `attacks/idre_rate_limit_suite.py` | Rate limiting smoke test |
+| `attacks/cryptanalysis/main.py` | Full Chosen-Plaintext / Statistical Cryptanalysis Suite |
 
 ## License
 
