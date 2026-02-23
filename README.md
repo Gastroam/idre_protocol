@@ -4,7 +4,7 @@ A field-bound cryptographic protocol for sovereign, pre-provisioned networks.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/tests-62_passing-brightgreen.svg)](#tests)
-[![Paper](https://img.shields.io/badge/paper-v2.4-orange.svg)](docs/IDRE-PAPER-v1)
+[![Paper](https://img.shields.io/badge/paper-v2.0-orange.svg)](docs/IDRE-PAPER-v1)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](#quickstart)
 
 ## What Is IDRE?
@@ -147,7 +147,7 @@ Each layer is independently composable — operators choose depth based on their
 | [STATUS.md](docs/STATUS.md) | Blunt current state vs goal |
 | [THREAT_MODEL.md](docs/THREAT_MODEL.md) | What we protect, what we assume, what we don't claim |
 | [COMPARISON.md](docs/COMPARISON.md) | IDRE vs TLS 1.3, WireGuard, Signal |
-| [IDRE Paper v2.4](docs/IDRE-PAPER) | Full protocol specification + security analysis |
+| [IDRE Paper v2.0](docs/IDRE-PAPER) | Full protocol specification + security analysis |
 
 ## Important Warnings
 
