@@ -11,7 +11,7 @@ A field-bound cryptographic protocol for sovereign, pre-provisioned networks.
 
 IDRE binds decoding capability to a **non-exportable geometric configuration** (the Field Provisioning Bundle) rather than a stored key. Nodes exchange semantic-free integers that are meaningless without the receiver's field geometry.
 
-**Target environment:** military enclaves, embassy links, air-gapped meshes — anywhere third-party trust (PKI, CAs) is unacceptable and out-of-band provisioning is the norm.
+**Target environment:** anywhere third-party trust (PKI, CAs) is unacceptable and out-of-band provisioning is the norm.
 
 **IDRE is not** a replacement for TLS, Signal, or WireGuard on the public internet.
 
