@@ -33,15 +33,13 @@ class TestResilience(unittest.TestCase):
         cluster_pepper = b"Resilience_Test_Pepper"
         vocab = _create_dummy_vocab()
         
-        self.node_a = FieldBoundNode(
-            node_id="A (Sender)", seed=111, anchor_seeds=(111,), anchor_weight=80.0,
+        self.node_a = FieldBoundNode(node_id="A (Sender)", seed=111, anchor_seeds=(111,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
             pepper=cluster_pepper,
             vocab=vocab
         )
-        self.node_b = FieldBoundNode(
-            node_id="B (Receiver)", seed=222, anchor_seeds=(222,), anchor_weight=80.0,
+        self.node_b = FieldBoundNode(node_id="B (Receiver)", seed=222, anchor_seeds=(222,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
             pepper=cluster_pepper,

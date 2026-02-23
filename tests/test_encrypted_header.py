@@ -98,14 +98,12 @@ class TestEndToEndEncryptedHeaders(unittest.TestCase):
     def setUp(self):
         seed = 12345
         vocab = _create_dummy_vocab()
-        self.node_a = FieldBoundNode(
-            node_id="A", seed=seed, anchor_seeds=(seed,), anchor_weight=1.0,
+        self.node_a = FieldBoundNode(pepper="test_pepper", node_id="A", seed=seed, anchor_seeds=(seed,), anchor_weight=1.0,
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             vocab=vocab
         )
-        self.node_b = FieldBoundNode(
-            node_id="B", seed=seed, anchor_seeds=(seed,), anchor_weight=1.0,
+        self.node_b = FieldBoundNode(pepper="test_pepper", node_id="B", seed=seed, anchor_seeds=(seed,), anchor_weight=1.0,
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             vocab=vocab
@@ -132,6 +130,22 @@ class TestEndToEndEncryptedHeaders(unittest.TestCase):
         result = self.node_b.receive(pkt, "A")
         self.assertEqual(result["status"], "delivered")
 
+    def test_encrypted_header_after_ratchet_cache_warmup(self):
+        """Regression: route-tag validation must survive ratchet cache initialization."""
+        sess = self.node_a.sessions["B"]
+        # Warm sender cache through the ratchet-key path without changing session counters.
+        self.node_a.encrypt_bytes(
+            b"warmup",
+            session_id=sess.session_id,
+            nonce=123456789,
+            ephemeral_salt=int(sess.ephemeral_salt),
+            ratchet_key=sess.ratchet_key,
+        )
+
+        pkt = self.node_a.send("B", "Hello after ratchet warmup!", encrypt_headers=True)
+        result = self.node_b.receive(pkt, "A")
+        self.assertEqual(result["status"], "delivered")
+
     def test_backward_compat_plaintext_header(self):
         """Legacy plaintext header still works."""
         pkt = self.node_a.send("B", "Hello plaintext headers!")
@@ -150,8 +164,7 @@ class TestEndToEndEncryptedHeaders(unittest.TestCase):
 
         # Create a node with a different seed (different field)
         vocab = _create_dummy_vocab()
-        node_c = FieldBoundNode(
-            node_id="C", seed=99999, anchor_seeds=(99999,), anchor_weight=1.0,
+        node_c = FieldBoundNode(pepper="test_pepper", node_id="C", seed=99999, anchor_seeds=(99999,), anchor_weight=1.0,
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             vocab=vocab
@@ -160,7 +173,7 @@ class TestEndToEndEncryptedHeaders(unittest.TestCase):
 
         result = node_c.receive(pkt, "A")
         self.assertEqual(result["status"], "reject")
-        self.assertEqual(result["reason"], "header_decrypt_failed")
+        self.assertEqual(result["reason"], "invalid_route_tag")
 
 
 if __name__ == "__main__":

@@ -23,14 +23,12 @@ class TestProtocolInvariants(unittest.TestCase):
         self.seed = 12345
         vocab = _create_dummy_vocab()
         
-        self.node_a = FieldBoundNode(
-            node_id="A", seed=self.seed, anchor_seeds=(self.seed,), anchor_weight=1.0, 
+        self.node_a = FieldBoundNode(pepper="test_pepper", node_id="A", seed=self.seed, anchor_seeds=(self.seed,), anchor_weight=1.0, 
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             vocab=vocab
         )
-        self.node_b = FieldBoundNode(
-            node_id="B", seed=self.seed, anchor_seeds=(self.seed,), anchor_weight=1.0,
+        self.node_b = FieldBoundNode(pepper="test_pepper", node_id="B", seed=self.seed, anchor_seeds=(self.seed,), anchor_weight=1.0,
             n_angles=16, scan_resolution=16, threshold=0.1, planes=1, tau_frac=0.5,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             vocab=vocab
@@ -106,9 +104,9 @@ class TestProtocolInvariants(unittest.TestCase):
 
         # Send packet with WRONG KEY (tampered payload)
         pkt = self.node_a.send("B", "Valid message")
-        # Tamper payload (flip first byte of ciphertext, [0] is length, [1] is first ct byte)
-        # payload is list[int]. Extra padding at end is ignored, so we must mutate inside ct or tag.
-        pkt["payload"][1] ^= 0xFF 
+        # Tamper payload (flip first byte of ciphertext, [0]-[3] are length (u32), [4] is first ct byte)
+        # payload is list[int]. Extra padding at end is ignored.
+        pkt["payload"][4] ^= 0xFF 
         
         res = self.node_b.receive(pkt, "A")
         self.assertEqual(res["status"], "reject")

@@ -184,8 +184,7 @@ class SeedCracker:
                 except: from core.vocab_codec import Vocab
                 _dummy = Vocab(["a"], {"a":0}, b"dum", {})
 
-                node = FieldBoundNode(
-                    node_id="EVE_CLONE", seed=s,
+                node = FieldBoundNode(pepper="test_pepper", node_id="EVE_CLONE", seed=s,
                     anchor_seeds=(7245,), anchor_weight=80.0,
                     n_angles=72, scan_resolution=50, threshold=0.5,
                     planes=4, tau_frac=0.55,
@@ -225,8 +224,7 @@ class EveDecryptor:
             except: from core.vocab_codec import Vocab
             _dummy = Vocab(["a"], {"a":0}, b"dum", {})
             
-            self.node = FieldBoundNode(
-                node_id="EVE_LEAK", seed=seed,
+            self.node = FieldBoundNode(pepper="test_pepper", node_id="EVE_LEAK", seed=seed,
                 anchor_seeds=(7245,), anchor_weight=80.0,
                 n_angles=72, scan_resolution=50, threshold=0.5,
                 planes=4, tau_frac=0.55,
@@ -379,8 +377,7 @@ class SeedCracker:
                 except: from core.vocab_codec import Vocab
                 _dummy = Vocab(["a"], {"a":0}, b"dum", {})
 
-                node = FieldBoundNode(
-                    node_id="EVE_CLONE", seed=s,
+                node = FieldBoundNode(pepper="test_pepper", node_id="EVE_CLONE", seed=s,
                     anchor_seeds=(7245,), anchor_weight=80.0,
                     n_angles=72, scan_resolution=50, threshold=0.5,
                     planes=4, tau_frac=0.55,
@@ -420,8 +417,7 @@ class EveDecryptor:
             except: from core.vocab_codec import Vocab
             _dummy = Vocab(["a"], {"a":0}, b"dum", {})
             
-            self.node = FieldBoundNode(
-                node_id="EVE_LEAK", seed=seed,
+            self.node = FieldBoundNode(pepper="test_pepper", node_id="EVE_LEAK", seed=seed,
                 anchor_seeds=(7245,), anchor_weight=80.0,
                 n_angles=72, scan_resolution=50, threshold=0.5,
                 planes=4, tau_frac=0.55,

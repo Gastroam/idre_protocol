@@ -36,6 +36,7 @@ try:
 except ImportError:
     try:
         from hive.node import FieldBoundNode
+        from core.vocab_codec import Vocab
     except ImportError:
         print("[!] FATAL: Could not import hive.node")
         sys.exit(1)
@@ -50,15 +51,19 @@ def setup_nodes():
     # CRITICAL: They must share the seed to derive the same MAC keys in this implementation.
     SHARED_SEED = 9999
     
-    a = FieldBoundNode(
-        node_id="A", seed=SHARED_SEED, anchor_seeds=(SHARED_SEED,), anchor_weight=10.0,
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    dummy_vocab = Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
+
+    a = FieldBoundNode(pepper="test_pepper", node_id="A", seed=SHARED_SEED, anchor_seeds=(SHARED_SEED,), anchor_weight=10.0,
         n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
-        print_deliveries=True, print_events=True, freeze_field=True, backend="frozen"
+        print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
+        vocab=dummy_vocab
     )
-    b = FieldBoundNode(
-        node_id="B", seed=SHARED_SEED, anchor_seeds=(SHARED_SEED,), anchor_weight=10.0,
+    b = FieldBoundNode(pepper="test_pepper", node_id="B", seed=SHARED_SEED, anchor_seeds=(SHARED_SEED,), anchor_weight=10.0,
         n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
-        print_deliveries=True, print_events=True, freeze_field=True, backend="frozen"
+        print_deliveries=True, print_events=True, freeze_field=True, backend="frozen",
+        vocab=dummy_vocab
     )
     return a, b
 

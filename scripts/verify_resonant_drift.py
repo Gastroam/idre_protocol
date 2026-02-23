@@ -104,8 +104,7 @@ class EveResonant:
         t2i = {t: i for i, t in enumerate(toks)}
         dummy_vocab = Vocab(tokens=toks, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={" ": [1]})
 
-        self.node = FieldBoundNode(
-            node_id="EVE_CLONE", seed=seed,
+        self.node = FieldBoundNode(pepper="test_pepper", node_id="EVE_CLONE", seed=seed,
             anchor_seeds=(7245,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5,
             planes=4, tau_frac=0.55,

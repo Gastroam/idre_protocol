@@ -63,7 +63,15 @@ except Exception:
 from idre_clean.core.neural_codec import NeuralCodec
 from .crypto import derive_mac_key
 
+from functools import wraps
+import threading
 
+def _with_lock(method):
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+    return wrapper
 
 
 class FieldBoundNode:
@@ -90,26 +98,21 @@ class FieldBoundNode:
         max_plaintext_bytes: int = 65535,
         plasticity: bool = False,
         pepper: str = "",
+        topology_seed: Optional[int] = None,
         healing_mode: str = "none",
     ):
         self.node_id = str(node_id)
         self.pepper = str(pepper)
         self.seed = int(seed)
+        self._lock = threading.RLock()
         
         # IDRE v2.4: Pepper is MANDATORY for production deployments.
-        # Without it, gradient-descent weight recovery reaches 97.9% accuracy (Appendix A.3).
         if not self.pepper:
-            import warnings
-            warnings.warn(
-                "IDRE SECURITY WARNING: pepper is empty. Without pepper, fingerprint bits "
-                "are vulnerable to gradient-descent weight recovery (97.9% accuracy in <3min). "
-                "Set pepper to a high-entropy secret for production deployments. See paper §2.2.",
-                stacklevel=2,
-            )
+            raise ValueError("IDRE SECURITY VIOLATION: 'pepper' is mandatory. Without pepper, fingerprint bits are vulnerable to gradient-descent weight recovery.")
         
         # IDRE v3: Initialize Topology Hiding (Unfolding Key)
         _dim = int(getattr(MTIConfig(), "embedding_dim", 64))
-        self.topology = TopologyManager(seed=self.seed, dim=_dim)
+        self.topology = TopologyManager(seed=int(topology_seed) if topology_seed is not None else self.seed, dim=_dim)
 
         self.anchor_seeds = tuple(int(x) for x in anchor_seeds)
         self.anchor_weight = float(anchor_weight)
@@ -213,7 +216,8 @@ class FieldBoundNode:
             for s in sorted(self._allowed_seeds):
                 self._ensure_anchor(s)
                 self._ensure_neuron(s)
-            self._cached_bits = self._compute_fingerprint_bits(int(self.seed))
+            # Keep cache canonical: context-free fingerprint_bits() applies pepper policy.
+            self._cached_bits = self.fingerprint_bits(int(self.seed), mutate=False)
 
     def _ensure_neuron(self, seed: int):
         if self.backend == "frozen":
@@ -469,12 +473,13 @@ class FieldBoundNode:
         # Retrieve state (bits)
         # Ouroboros: Use provided Ratchet Key (KDF), else Root Seed (Field)
         if ratchet_key is not None:
-             if self._cached_bits is None:
-                  self._cached_bits = self._compute_fingerprint_bits(self.seed, mutate=False)
-             bits = derive_ratchet_bits(int(ratchet_key), len(self._cached_bits))
-             # No field evolution for ratchet keys (they are purely mathematical)
+            if self._cached_bits is None:
+                # Canonical cache must include pepper when configured.
+                self._cached_bits = self.fingerprint_bits(self.seed, mutate=False)
+            bits = derive_ratchet_bits(int(ratchet_key), len(self._cached_bits))
+            # No field evolution for ratchet keys (they are purely mathematical)
         else:
-             bits = self.fingerprint_bits(self.seed, mutate=False, context_data=session_id.encode())
+            bits = self.fingerprint_bits(self.seed, mutate=False, context_data=session_id.encode())
         
         # Encrypt
         ct_ints = _encrypt_stream(
@@ -574,11 +579,12 @@ class FieldBoundNode:
         # Retrieve state (bits)
         # Ouroboros: Use Ratchet Key if available
         if ratchet_key is not None:
-             if self._cached_bits is None:
-                  self._cached_bits = self._compute_fingerprint_bits(self.seed, mutate=False)
-             bits = derive_ratchet_bits(int(ratchet_key), len(self._cached_bits))
+            if self._cached_bits is None:
+                # Canonical cache must include pepper when configured.
+                self._cached_bits = self.fingerprint_bits(self.seed, mutate=False)
+            bits = derive_ratchet_bits(int(ratchet_key), len(self._cached_bits))
         else:
-             bits = self.fingerprint_bits(self.seed, mutate=False, context_data=session_id.encode())
+            bits = self.fingerprint_bits(self.seed, mutate=False, context_data=session_id.encode())
         
         # Verify MAC
         key = derive_mac_key(
@@ -752,6 +758,7 @@ class FieldBoundNode:
              print(f"[{self.node_id}] ROLLBACK ANCHOR peer={dst}")
         return True
 
+    @_with_lock
     def ingest_finalized_block(self, block_hash: str):
         """
         The Ouroboros Trigger.
@@ -793,6 +800,7 @@ class FieldBoundNode:
         # we collapse to the single truth immediately to save resources.
         self.timelines[peer_id] = [winner]
 
+    @_with_lock
     def send(
         self,
         dst_node_id: str,
@@ -918,6 +926,7 @@ class FieldBoundNode:
 
         return header
 
+    @_with_lock
     def receive(self, msg: Dict[str, Any], prev_hop_id: str) -> Dict[str, Any]:
         prev = str(prev_hop_id)
         if prev not in self.sessions: # Note: self.sessions is the property view, but self.timelines has the real data
@@ -929,9 +938,24 @@ class FieldBoundNode:
 
         # Detect encrypted header mode
         if "encrypted_header" in msg and "route_tag" in msg:
-            from .protocol import decrypt_header
-            outer_payload = msg.get("payload")  # save before overwriting
+            from .protocol import decrypt_header, derive_route_tag
+            epoch = int(time.time()) // 60
             bits = self.fingerprint_bits(self.seed, mutate=False)
+            
+            # Validate Route Tag (+/- 1 epoch window)
+            tag_hex = str(msg["route_tag"])
+            tag_valid = False
+            for dx in (0, -1, 1):
+                if derive_route_tag(bits, epoch + dx).hex() == tag_hex:
+                    tag_valid = True
+                    break
+            
+            if not tag_valid:
+                if self.print_events:
+                    print(f"[{self.node_id}] RECV reject from={prev} reason=invalid_route_tag")
+                return {"status": "reject", "reason": "invalid_route_tag"}
+
+            outer_payload = msg.get("payload")  # save before overwriting
             enc_bytes = bytes.fromhex(str(msg["encrypted_header"]))
             sid_hint = str(msg.get("session_id", ""))
             nonce_hint = int(msg.get("nonce", 0))

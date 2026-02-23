@@ -103,8 +103,7 @@ def _mutual_handshake(*, a_url: str, a_id: str, b_url: str, b_id: str, session_i
 class EveDecryptor:
     def __init__(self, seed: int = 7245):
         self.seed = int(seed)
-        self.node = FieldBoundNode(
-            node_id="EVE_LEAK",
+        self.node = FieldBoundNode(pepper="test_pepper", node_id="EVE_LEAK",
             seed=self.seed,
             anchor_seeds=(7245,),
             anchor_weight=80.0,

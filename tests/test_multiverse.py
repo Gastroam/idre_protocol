@@ -40,8 +40,7 @@ class TestMultiverse(unittest.TestCase):
         return Vocab(["a"], {"a": 0}, b"dummy", {})
 
     def setUp(self):
-        self.node = FieldBoundNode(
-            node_id="NODE_A",
+        self.node = FieldBoundNode(pepper="test_pepper", node_id="NODE_A",
             seed=1234,
             healing_mode="multiverse",
             print_events=True,
@@ -120,8 +119,7 @@ class TestMultiverse(unittest.TestCase):
         
         # We manually call _encrypt_aead from somewhere? No, internal.
         # We use a temporary node representing Peer B
-        node_b = FieldBoundNode(
-            node_id="PEER_B", 
+        node_b = FieldBoundNode(pepper="test_pepper", node_id="PEER_B", 
             seed=9999,
             # Mandatory args
             anchor_seeds=(7245,),

@@ -27,8 +27,7 @@ def run_test():
     # If plasticity is True, the lattice evolves on every encrypt.
     vocab = make_dummy_vocab()
     
-    node_a = FieldBoundNode(
-        node_id="A", seed=1000, anchor_seeds=(1000,), anchor_weight=10.0,
+    node_a = FieldBoundNode(pepper="test_pepper", node_id="A", seed=1000, anchor_seeds=(1000,), anchor_weight=10.0,
         n_angles=10, scan_resolution=10, threshold=0.1, planes=2, tau_frac=0.1,
         print_deliveries=False, print_events=False, freeze_field=True, backend="frozen", # Backend frozen implies no plasticity? 
         # Wait, if backend=frozen, plasticity is ignored in _evolve_lattice.
@@ -39,8 +38,7 @@ def run_test():
         healing_mode="multiverse"
     )
     
-    node_b = FieldBoundNode(
-        node_id="B", seed=1000, anchor_seeds=(1000,), anchor_weight=10.0,
+    node_b = FieldBoundNode(pepper="test_pepper", node_id="B", seed=1000, anchor_seeds=(1000,), anchor_weight=10.0,
         n_angles=10, scan_resolution=10, threshold=0.1, planes=2, tau_frac=0.1,
         print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
         vocab=vocab,

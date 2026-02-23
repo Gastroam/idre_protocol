@@ -50,7 +50,7 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
     ap.add_argument("--enable-plasticity", action=argparse.BooleanOptionalAction, default=False)
     ap.add_argument("--freeze-field", action=argparse.BooleanOptionalAction, default=False)
     ap.add_argument("--healing-mode", type=str, default="none")
-    ap.add_argument("--pepper", type=str, default="", help="MANDATORY for production. HMAC pepper for weight hiding (§2.2).")
+    ap.add_argument("--pepper", type=str, default="", help="Crucial security parameter (domain separator for PRF).")
     ap.add_argument("--backend", type=str, default="lattice")
     
     # Backend / Mode
@@ -104,6 +104,16 @@ def configure_node_from_args(args) -> FieldBoundNode:
         # Proceeding might fail in Node __init__
         vocab = None
         vocab_registry = None
+
+    # Ensure pepper is set
+    pepper = args.pepper or os.environ.get("IDRE_PEPPER")
+    if not pepper:
+        pepper = secrets.token_hex(32)
+        print(f"[*] WARNING: No pepper provided. Randomly generated: {pepper}", file=sys.stderr)
+        print("[*] WARNING: In production, specify --pepper to ensure deterministic identity restoration.", file=sys.stderr)
+
+    if args.port <= 0:
+        args.port = 8890
 
     node = FieldBoundNode(
         node_id=args.node_id,

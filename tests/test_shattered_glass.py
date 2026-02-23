@@ -45,8 +45,7 @@ class TestShatteredGlass(unittest.TestCase):
         vocab = _create_dummy_vocab()
         
         # Node A: The Mainnet Anchor
-        self.node_a = FieldBoundNode(
-            node_id="A (Anchor)", seed=111111, anchor_seeds=(111111,), anchor_weight=80.0,
+        self.node_a = FieldBoundNode(node_id="A (Anchor)", seed=111111, anchor_seeds=(111111,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             pepper=cluster_pepper,
@@ -54,8 +53,7 @@ class TestShatteredGlass(unittest.TestCase):
         )
         
         # Node B: The Node destined to Fork (The Clone)
-        self.node_b = FieldBoundNode(
-            node_id="B (Clone)", seed=222222, anchor_seeds=(222222,), anchor_weight=80.0,
+        self.node_b = FieldBoundNode(node_id="B (Clone)", seed=222222, anchor_seeds=(222222,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             pepper=cluster_pepper,
@@ -63,8 +61,7 @@ class TestShatteredGlass(unittest.TestCase):
         )
         
         # Node C: The Control Group (Stays with A)
-        self.node_c = FieldBoundNode(
-            node_id="C (Loyal)", seed=333333, anchor_seeds=(333333,), anchor_weight=80.0,
+        self.node_c = FieldBoundNode(node_id="C (Loyal)", seed=333333, anchor_seeds=(333333,), anchor_weight=80.0,
             n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
             print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
             pepper=cluster_pepper,

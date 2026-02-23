@@ -41,11 +41,13 @@ try:
     # Try fully qualified first (standard)
     from idre_clean.core.physics_v12 import derive_locked_planes, scan_fingerprint_bits
     from idre_clean.hive.node import FieldBoundNode
+    from idre_clean.core.vocab_codec import Vocab
 except ImportError:
     try:
         # Fallback for script-style execution from repo root
         from core.physics_v12 import derive_locked_planes, scan_fingerprint_bits
         from hive.node import FieldBoundNode
+        from core.vocab_codec import Vocab
     except ImportError as e:
         print(f"[!] Import Error: {e}")
         print(f"    sys.path: {sys.path}")
@@ -159,11 +161,15 @@ def main():
     # We create a temporary node to generate true bits
     # We match the config: planes=4, n_angles=72, backend=lattice?
     
-    victim = FieldBoundNode(
-        node_id="VICTIM", seed=args.seed, anchor_seeds=(args.seed,), anchor_weight=80.0,
+    tokens = ["<pad>", "<a>", "<b>", "<c>"]
+    t2i = {t: i for i, t in enumerate(tokens)}
+    dummy_vocab = Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
+
+    victim = FieldBoundNode(node_id="VICTIM", seed=args.seed, anchor_seeds=(args.seed,), anchor_weight=80.0,
         n_angles=72, scan_resolution=50, threshold=0.5, planes=4, tau_frac=0.55,
         print_deliveries=False, print_events=False, freeze_field=True, backend="frozen",
-        pepper=args.pepper
+        pepper=args.pepper,
+        vocab=dummy_vocab
     )
     target_bits = victim.fingerprint_bits(args.seed)
     print(f"    Captured {len(target_bits)} bits.")

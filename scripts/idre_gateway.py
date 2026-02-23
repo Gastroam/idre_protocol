@@ -201,7 +201,29 @@ class AsyncGateway:
 
     # --- Logic ---
 
-    # ... (Logic helpers remain same) ...
+    async def _queue_push_drop_oldest(self, q: asyncio.Queue, item: bytes, name: str):
+        try:
+            q.put_nowait(item)
+        except asyncio.QueueFull:
+            try:
+                q.get_nowait()
+                q.task_done()
+            except asyncio.QueueEmpty:
+                pass
+            try:
+                q.put_nowait(item)
+            except asyncio.QueueFull:
+                pass
+
+    async def user_agent_post_bin(self, url: str, data: bytes, timeout: float = 10.0) -> Tuple[int, bytes]:
+        if not self._session:
+            return 0, b""
+        try:
+            async with self._session.post(url, data=data, timeout=timeout) as resp:
+                body = await resp.read()
+                return resp.status, body
+        except Exception:
+            return 0, b""
 
     # --- Background Loops ---
 

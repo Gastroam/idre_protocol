@@ -53,22 +53,24 @@ def frame_payload(ct: List[int], tag: bytes, pad_bytes: int = 0) -> List[int]:
     if len(tag_bytes) != MAC_LEN:
         raise ValueError("bad_tag_len")
 
-    framed = [len(real_ct)] + real_ct + tag_bytes
+    n = len(real_ct)
+    n_bytes = [(n >> 24) & 0xFF, (n >> 16) & 0xFF, (n >> 8) & 0xFF, n & 0xFF]
+    framed = n_bytes + real_ct + tag_bytes
     if pad_bytes > 0:
         pad = _expand_bytes(_sha256(bytes(real_ct)), int(pad_bytes), b"PAD/")
         framed.extend([b for b in pad])
     return framed
 
 def unframe_payload(framed: List[int], *, max_ct_len: int = DEFAULT_MAX_CT_LEN) -> Tuple[List[int], bytes]:
-    if not framed:
+    if not framed or len(framed) < 4:
         return [], b""
-    n = int(framed[0])
+    n = (framed[0] << 24) | (framed[1] << 16) | (framed[2] << 8) | framed[3]
     if n < 0:
         return [], b""
     if n > int(max_ct_len):
         return [], b""
-    ct = [int(x) & 0xFF for x in framed[1 : 1 + n]]
-    tag_start = 1 + n
+    ct = [int(x) & 0xFF for x in framed[4 : 4 + n]]
+    tag_start = 4 + n
     tag_end = tag_start + MAC_LEN
     if tag_end > len(framed):
         return [], b""
