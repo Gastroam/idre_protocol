@@ -3,15 +3,15 @@
 A field-bound cryptographic protocol for sovereign, pre-provisioned networks.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-55_passing-brightgreen.svg)](#tests)
-[![Paper](https://img.shields.io/badge/paper-v2.4-orange.svg)](docs/IDRE-PAPER-v1)
+[![Tests](https://img.shields.io/badge/tests-62_passing-brightgreen.svg)](#tests)
+[![Paper](https://img.shields.io/badge/paper-v2.0-orange.svg)](docs/IDRE-PAPER-v1)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](#quickstart)
 
 ## What Is IDRE?
 
 IDRE binds decoding capability to a **non-exportable geometric configuration** (the Field Provisioning Bundle) rather than a stored key. Nodes exchange semantic-free integers that are meaningless without the receiver's field geometry.
 
-**Target environment:** military enclaves, embassy links, air-gapped meshes — anywhere third-party trust (PKI, CAs) is unacceptable and out-of-band provisioning is the norm.
+**Target environment:** anywhere third-party trust (PKI, CAs) is unacceptable and out-of-band provisioning is the norm.
 
 **IDRE is not** a replacement for TLS, Signal, or WireGuard on the public internet.
 
@@ -147,7 +147,7 @@ Each layer is independently composable — operators choose depth based on their
 | [STATUS.md](docs/STATUS.md) | Blunt current state vs goal |
 | [THREAT_MODEL.md](docs/THREAT_MODEL.md) | What we protect, what we assume, what we don't claim |
 | [COMPARISON.md](docs/COMPARISON.md) | IDRE vs TLS 1.3, WireGuard, Signal |
-| [IDRE Paper v2.4](docs/IDRE-PAPER) | Full protocol specification + security analysis |
+| [IDRE Paper v2.0](docs/IDRE-PAPER) | Full protocol specification + security analysis |
 
 ## Important Warnings
 
