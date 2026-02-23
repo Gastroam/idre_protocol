@@ -255,7 +255,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"status": "ok", "msg": msg})
             except Exception:
                 import traceback
-                traceback.print_exc()
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+                logger.error("Exception occurred:", exc_info=True)
                 self._json(500, {"error": "internal"})
             return
 
@@ -295,7 +299,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, {"status": "ok", "forced": True})
             except Exception as e:
                 import traceback
-                traceback.print_exc()
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+                logger.error("Exception occurred:", exc_info=True)
                 self._json(500, {"error": str(e)})
             return
 

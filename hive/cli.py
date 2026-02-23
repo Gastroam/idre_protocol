@@ -1,6 +1,10 @@
 
 import argparse
 import os
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 from typing import Dict, Optional
 from idre_clean.hive.node import FieldBoundNode
 from idre_clean.hive.utils import (
@@ -103,7 +107,7 @@ def configure_node_from_args(args) -> FieldBoundNode:
     try:
         vocab_registry, vocab = load_vocab_registry([str(x) for x in args.vocab_file])
     except Exception as e:
-        print(f"[hive.cli] WARNING: Failed to load vocab: {e}")
+        logger.info(f"[hive.cli] WARNING: Failed to load vocab: {e}")
         vocab = None
         vocab_registry = None
 
@@ -153,7 +157,7 @@ def configure_node_from_args(args) -> FieldBoundNode:
         try:
             seeds = [int(s.strip()) for s in args.offline_seed_ring.split(",") if s.strip()]
             node.offline_seed_ring = seeds
-            print(f"[hive.cli] Offline Ghost Ring loaded: {len(seeds)} seeds")
+            logger.info(f"[hive.cli] Offline Ghost Ring loaded: {len(seeds)} seeds")
         except ValueError:
             raise SystemExit("ERROR: --offline-seed-ring must be comma-separated integers")
             

@@ -1,5 +1,9 @@
 import hashlib
 import hmac
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 import secrets
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -270,14 +274,14 @@ class FieldBoundNode:
         self._ensure_neuron(s)
         
         try:
-            # print(f"[DEBUG] _evolve_lattice triggering for seed={s}")
+            # logger.info(f"[DEBUG] _evolve_lattice triggering for seed={s}")
             self.config.initial_lr = 5.0
             z = np.full((int(self.config.embedding_dim),), 0.05, dtype=np.float64)
             # pre_n = self.lattice.active_tissue[s]
             # res = pre_n.perceive(z)
             self.lattice.stimulate([s], input_signal=z, learn=True)
         except Exception as e:
-            print(f"[ERROR] Plasticity update failed: {e}")
+            logger.error(f"Plasticity update failed: {e}")
             raise e
 
     def _compute_fingerprint_bits(self, seed: int, mutate: bool = True) -> List[int]:
@@ -296,7 +300,7 @@ class FieldBoundNode:
             # If backend=lattice, we read current state.
             # Preserve compatibility with legacy Stimulate-then-Read logic
             if mutate and self.plasticity:
-                 # print(f"[DEBUG] Legacy Mutation in _compute_fingerprint_bits")
+                 # logger.info(f"[DEBUG] Legacy Mutation in _compute_fingerprint_bits")
                  self._evolve_lattice(s)
 
             n = self.lattice.active_tissue[s]
@@ -605,7 +609,7 @@ class FieldBoundNode:
             aad=aad,
         )
         if self.print_events:
-            print(f"[{self.node_id}] VERIFY_REQ create session={str(session_id)[:8]}.. nonce={nonce}")
+            logger.info(f"[{self.node_id}] VERIFY_REQ create session={str(session_id)[:8]}.. nonce={nonce}")
         hdr["payload"] = payload
         return hdr
 
@@ -616,14 +620,14 @@ class FieldBoundNode:
         rec = self._challenges.peek_if_valid(str(peer_id), challenge_in_msg)
         if rec is None:
             if self.print_events:
-                print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (no_pending_challenge)")
+                logger.info(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (no_pending_challenge)")
             return False
         challenge_str = str(rec.challenge)
         
         payload_list = msg.get("payload")
         if not isinstance(payload_list, list):
             if self.print_events:
-                print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (bad_payload_type)")
+                logger.info(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (bad_payload_type)")
             return False
 
         e_salt = int(msg.get("ephemeral_salt", 0))
@@ -649,14 +653,14 @@ class FieldBoundNode:
         if not valid or text != RESONANT_SIGNATURE:
             if self.print_events:
                 reason = text if not valid else "bad_sig"
-                print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} reason={reason}")
+                logger.info(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} reason={reason}")
             return False
 
         # Consume challenge on success (one-time use).
         # Must succeed; otherwise another thread consumed it first.
         if not self._challenges.consume(str(peer_id), challenge_in_msg):
             if self.print_events:
-                print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (challenge_already_used)")
+                logger.info(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (challenge_already_used)")
             return False
 
         # Epoch Anchor: Initialize rolling chain hash
@@ -685,7 +689,7 @@ class FieldBoundNode:
         self.timelines[peer_id] = [new_session]
         
         if self.print_events:
-            print(f"[{self.node_id}] SESSION ESTABLISHED with {peer_id} (sid={sess_id})")
+            logger.info(f"[{self.node_id}] SESSION ESTABLISHED with {peer_id} (sid={sess_id})")
         return True
 
     def force_session(self, peer_id: str, session_id: str, ephemeral_salt: int):
@@ -713,7 +717,7 @@ class FieldBoundNode:
         self.timelines[peer_id] = [new_session]
         
         if self.print_events:
-            print(f"[{self.node_id}] SESSION FORCED with {peer_id} (sid={session_id})")
+            logger.info(f"[{self.node_id}] SESSION FORCED with {peer_id} (sid={session_id})")
 
     def rollback_anchor(self, peer_id: str) -> bool:
         """Rollback Epoch Anchor to previous state if delivery failed."""
@@ -728,7 +732,7 @@ class FieldBoundNode:
                 sess.prev_chain_hash = b""
         
         if self.print_events:
-             print(f"[{self.node_id}] ROLLBACK ANCHOR peer={dst}")
+             logger.info(f"[{self.node_id}] ROLLBACK ANCHOR peer={dst}")
         return True
 
     @_with_lock
@@ -739,7 +743,7 @@ class FieldBoundNode:
         Rotates ALL session keys (in ALL timelines) forward. Forward Secrecy is immediate.
         """
         if self.print_events:
-            print(f"[*] Ouroboros: Ingesting Reality {block_hash[:8]}...")
+            logger.info(f"[*] Ouroboros: Ingesting Reality {block_hash[:8]}...")
         
         for peer_id, timelines in self.timelines.items():
             for sess in timelines:
@@ -760,7 +764,7 @@ class FieldBoundNode:
                 sess.last_ratchet_hash = block_hash
                 
                 if self.print_events:
-                    print(f"    [>] Session {sess.session_id[:6]} ({peer_id}): Ratcheted {old_key_fragment}... -> {str(sess.ratchet_key)[:8]}...")
+                    logger.info(f"    [>] Session {sess.session_id[:6]} ({peer_id}): Ratcheted {old_key_fragment}... -> {str(sess.ratchet_key)[:8]}...")
 
     @property
     def sessions(self) -> Dict[str, HiveSession]:
@@ -787,7 +791,7 @@ class FieldBoundNode:
         dst = str(dst_node_id)
         if dst not in self.timelines or not self.timelines[dst]:
             if self.print_events:
-                print(f"[{self.node_id}] SEND blocked dst={dst} (no_session)")
+                logger.info(f"[{self.node_id}] SEND blocked dst={dst} (no_session)")
             return {}
         
         # Always send on the PRIMARY timeline (Index 0).
@@ -797,7 +801,7 @@ class FieldBoundNode:
         
         if not sess.is_valid():
             if self.print_events:
-                print(f"[{self.node_id}] SEND blocked dst={dst} (session_expired)")
+                logger.info(f"[{self.node_id}] SEND blocked dst={dst} (session_expired)")
             return {}
 
         nonce = secrets.randbits(64)
@@ -874,12 +878,12 @@ class FieldBoundNode:
             # Revert sequence on failure to ensure next try matches
             sess.out_seq -= 1
             if self.print_events:
-                 print(f"[{self.node_id}] SEND blocked dst={dst} ({repr(e)})")
+                 logger.info(f"[{self.node_id}] SEND blocked dst={dst} ({repr(e)})")
             return {}
 
         if self.print_events:
             plen = len(payload) if isinstance(payload, list) else -1
-            print(f"[{self.node_id}] SENT dst={dst} nonce={nonce} payload_len={plen} seq={sess.out_seq}")
+            logger.info(f"[{self.node_id}] SENT dst={dst} nonce={nonce} payload_len={plen} seq={sess.out_seq}")
         header["payload"] = payload
 
         # Encrypted header mode: wrap the plaintext header in an opaque blob
@@ -906,7 +910,7 @@ class FieldBoundNode:
             # Check timelines directly
             if prev not in self.timelines or not self.timelines[prev]:
                 if self.print_events:
-                    print(f"[{self.node_id}] RECV reject from={prev} reason=unknown_session")
+                    logger.info(f"[{self.node_id}] RECV reject from={prev} reason=unknown_session")
                 return {"status": "reject", "reason": "unknown_session"}
 
         # Detect encrypted header mode
@@ -925,7 +929,7 @@ class FieldBoundNode:
             
             if not tag_valid:
                 if self.print_events:
-                    print(f"[{self.node_id}] RECV reject from={prev} reason=invalid_route_tag")
+                    logger.info(f"[{self.node_id}] RECV reject from={prev} reason=invalid_route_tag")
                 return {"status": "reject", "reason": "invalid_route_tag"}
 
             outer_payload = msg.get("payload")  # save before overwriting
@@ -935,7 +939,7 @@ class FieldBoundNode:
             ok, decrypted_hdr = decrypt_header(enc_bytes, bits, sid_hint, nonce_hint)
             if not ok:
                 if self.print_events:
-                    print(f"[{self.node_id}] RECV reject from={prev} reason=header_decrypt_failed")
+                    logger.info(f"[{self.node_id}] RECV reject from={prev} reason=header_decrypt_failed")
                 return {"status": "reject", "reason": "header_decrypt_failed"}
             # The encrypted header includes the full dict with payload key,
             # but the payload list itself was carried in the outer message for efficiency.
@@ -945,7 +949,7 @@ class FieldBoundNode:
 
         if str(msg.get("field_profile_id", "")) != str(getattr(self, "field_profile_id", "")):
             if self.print_events:
-                print(f"[{self.node_id}] RECV reject from={prev} reason=wrong_profile")
+                logger.info(f"[{self.node_id}] RECV reject from={prev} reason=wrong_profile")
             return {"status": "reject", "reason": "wrong_profile"}
 
 
@@ -956,22 +960,22 @@ class FieldBoundNode:
         expires_at_ms = int(msg.get("expires_at_ms", 0) or 0)
         # ... checks ...
         if created_at_ms <= 0 or expires_at_ms <= 0:
-            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=bad_time")
+            if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=bad_time")
             return {"status": "reject", "reason": "bad_time"}
         now_ms = _now_ms()
         if now_ms > int(expires_at_ms):
-            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=expired")
+            if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=expired")
             return {"status": "reject", "reason": "expired"}
         if int(created_at_ms) > int(now_ms) + int(self.skew_ms):
-            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=clock_skew")
+            if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=clock_skew")
             return {"status": "reject", "reason": "clock_skew"}
         if int(expires_at_ms) - int(created_at_ms) > int(self.max_ttl_ms):
-            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=ttl_too_long")
+            if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=ttl_too_long")
             return {"status": "reject", "reason": "ttl_too_long"}
 
         payload = msg.get("payload")
         if not isinstance(payload, list):
-            if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=bad_payload")
+            if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=bad_payload")
             return {"status": "reject", "reason": "bad_payload"}
 
         header = {
@@ -1033,7 +1037,7 @@ class FieldBoundNode:
                 # Limit active forks to 2 (User Request)
                 if len(self.timelines.get(prev, [])) >= 2:
                     if self.print_events:
-                        print(f"[{self.node_id}] MULTIVERSE: Skip fork (Limit 2 reached)")
+                        logger.info(f"[{self.node_id}] MULTIVERSE: Skip fork (Limit 2 reached)")
                     continue
 
                 # Try to HEAL by fast-forwarding the Chain Hash for skipped packets
@@ -1072,7 +1076,7 @@ class FieldBoundNode:
                         blob_found, acks_found, seq_found = b2, a2, c_seq
                         valid_decrypt = True
                         if self.print_events:
-                            print(f"[{self.node_id}] MULTIVERSE: Phantom Timeline Verified! (Seq {c_seq})")
+                            logger.info(f"[{self.node_id}] MULTIVERSE: Phantom Timeline Verified! (Seq {c_seq})")
                         break
             
             if valid_decrypt: break
@@ -1080,16 +1084,16 @@ class FieldBoundNode:
         if not valid_decrypt:
              if replay_detected:
                  if self.print_events:
-                     print(f"[{self.node_id}] RECV reject from={prev} reason=replay")
+                     logger.info(f"[{self.node_id}] RECV reject from={prev} reason=replay")
                  return {"status": "reject", "reason": "replay"}
              if self.print_events:
-                 print(f"[{self.node_id}] RECV reject from={prev} reason=mac_mismatch")
+                 logger.info(f"[{self.node_id}] RECV reject from={prev} reason=mac_mismatch")
              return {"status": "reject", "reason": "mac_mismatch"}
 
         # COLLAPSE: Winner takes all.
         if len(self.timelines[prev]) > 1 or winner_sess not in self.timelines[prev]:
             if self.print_events:
-                print(f"[{self.node_id}] MULTIVERSE: Collapse! Winner={winner_sess.session_id} (Seq {seq_found})")
+                logger.info(f"[{self.node_id}] MULTIVERSE: Collapse! Winner={winner_sess.session_id} (Seq {seq_found})")
             self.timelines[prev] = [winner_sess]
 
         sess = winner_sess
@@ -1100,7 +1104,7 @@ class FieldBoundNode:
         if seq_found != sess.in_seq + 1:
             gap = seq_found - sess.in_seq - 1
             if self.print_events:
-                print(f"[{self.node_id}] RESILIENCE: Gap Detected! {sess.in_seq} -> {seq_found} (Missed {gap})")
+                logger.info(f"[{self.node_id}] RESILIENCE: Gap Detected! {sess.in_seq} -> {seq_found} (Missed {gap})")
         
         sess.in_seq = seq_found
         sess.chain_hash = update_chain_hash(sess.chain_hash, sess.in_seq)
@@ -1110,29 +1114,29 @@ class FieldBoundNode:
             try:
                 ok, text = unpack_plaintext(bytes(blob_found))
                 if not ok:
-                     if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error")
+                     if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=unpack_error")
                      return {"status": "reject", "reason": "unpack_error"}
             except Exception as e:
                 if self.print_events:
                     import traceback
-                    traceback.print_exc()
-                    print(f"[{self.node_id}] RECV error: {e}")
+                    logger.error("Exception occurred:", exc_info=True)
+                    logger.info(f"[{self.node_id}] RECV error: {e}")
                 return {"status": "reject", "reason": "unpack_error"}
         else: # Vocab Path
             ok_id, _reason_id, vid = vocab_peek_vocab_id(blob_found)
             if not ok_id:
-                if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=bad_plaintext")
+                if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=bad_plaintext")
                 return {"status": "reject", "reason": "bad_plaintext"}
             
             assert self.vocab_registry is not None
             v = self.vocab_registry.get(bytes(vid))
             if v is None:
-                if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason=wrong_vocab")
+                if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason=wrong_vocab")
                 return {"status": "reject", "reason": "wrong_vocab"}
             
             ok2, reason2, text = vocab_decode_text(blob_found, v, allow_literals=bool(self.vocab_allow_literals))
             if not ok2:
-                if self.print_events: print(f"[{self.node_id}] RECV reject from={prev} reason={reason2}")
+                if self.print_events: logger.info(f"[{self.node_id}] RECV reject from={prev} reason={reason2}")
                 return {"status": "reject", "reason": reason2}
 
         # Success! Commit Nonce and Sequence
@@ -1140,12 +1144,12 @@ class FieldBoundNode:
 
         if str(msg.get("dst_node_id")) == self.node_id:
             if self.print_deliveries:
-                print(f"[DELIVERED to {self.node_id} from {prev}] {text}")
+                logger.info(f"[DELIVERED to {self.node_id} from {prev}] {text}")
             return {"status": "delivered"}
         
         msg_dst = str(msg.get("dst_node_id"))
         if self.print_events:
-            print(f"[{self.node_id}] RECV reject from={prev} reason=no_forward dst={msg_dst}")
+            logger.info(f"[{self.node_id}] RECV reject from={prev} reason=no_forward dst={msg_dst}")
         return {"status": "reject", "reason": "no_forward"}
 
     def ingest_offline_envelope(self, blob: bytes) -> Tuple[bool, str, Optional[str]]:
@@ -1176,12 +1180,12 @@ class FieldBoundNode:
                 if ok:
                     assert pt is not None
                     if self.print_events:
-                        print(f"[{self.node_id}] OFFLINE_RECOVER seed={seed_candidate} profile={self.field_profile_id}")
+                        logger.info(f"[{self.node_id}] OFFLINE_RECOVER seed={seed_candidate} profile={self.field_profile_id}")
                     
                     try:
                         text = pt.decode("utf-8")
                         if self.print_deliveries:
-                            print(f"[OFFLINE RECOVERED] {text}")
+                            logger.info(f"[OFFLINE RECOVERED] {text}")
                         return True, "ok", text
                     except Exception:
                         return True, "ok_binary", pt.hex()
