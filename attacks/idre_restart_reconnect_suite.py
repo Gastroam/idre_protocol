@@ -137,7 +137,7 @@ def _start_node(
     env = os.environ.copy()
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env['PYTHONPATH'] = root_dir + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env else '')
-    return subprocess.Popen(env=env, cwd=root_dir, args, cwd=repo_root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return subprocess.Popen(args, env=env, cwd=root_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 def _stop_proc(p: Optional[subprocess.Popen]) -> None:
     if p is None:
