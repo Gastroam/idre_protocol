@@ -12,7 +12,7 @@ import numpy as np
 
 # Prefer vendored minimal MTI-EVO config
 try:
-    from idre_clean.vendor.mti_evo.core.config import MTIConfig  # type: ignore
+    from vendor.mti_evo.core.config import MTIConfig  # type: ignore
 except Exception:
     from mti_evo.core.config import MTIConfig  # type: ignore
 

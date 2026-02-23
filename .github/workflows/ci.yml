@@ -14,43 +14,33 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     env:
-      # The repo may be checked out under any directory name.
-      # All internal imports use `from idre_clean.*`, so we create a symlink
-      # and add the workspace parent to PYTHONPATH.
-      PYTHONPATH: ${{ github.workspace }}/..
+      PYTHONPATH: ${{ github.workspace }}
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          path: idre_clean
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
 
       - name: Install
-        working-directory: idre_clean
         run: |
           python -m pip install --upgrade pip
           python -m pip install numpy pytest ruff
           python -m pip install -e .
 
       - name: Lint (ruff)
-        working-directory: idre_clean
         run: |
           python -m ruff check core hive tests attacks
 
       - name: Compile (syntax)
-        working-directory: idre_clean
         run: |
           python -m compileall -q core hive tests
 
       - name: Unit Tests (pytest)
-        working-directory: idre_clean
         run: |
           python -m pytest tests/ -q --tb=short
 
       - name: "Integration: Rate Limit Suite"
-        working-directory: idre_clean
         run: |
           python attacks/idre_rate_limit_suite.py --n 50
