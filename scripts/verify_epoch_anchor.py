@@ -44,10 +44,14 @@ def run_test():
     ]
     
     print("[*] Starting Nodes A, B, and Eve (Clone)...")
-    proc_a = subprocess.Popen(NODE_CMD + ["--port", str(PORT_A), "--node-id", "A"] + common_args)
-    proc_b = subprocess.Popen(NODE_CMD + ["--port", str(PORT_B), "--node-id", "B"] + common_args)
+    import os
+    env = os.environ.copy()
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env['PYTHONPATH'] = root_dir + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env else '')
+    proc_a = subprocess.Popen(env=env, cwd=root_dir, NODE_CMD + ["--port", str(PORT_A), "--node-id", "A"] + common_args)
+    proc_b = subprocess.Popen(env=env, cwd=root_dir, NODE_CMD + ["--port", str(PORT_B), "--node-id", "B"] + common_args)
     # EVE: Impersonates B (Clone Attack)
-    proc_e = subprocess.Popen(NODE_CMD + ["--port", str(PORT_EVE), "--node-id", "B"] + common_args)
+    proc_e = subprocess.Popen(env=env, cwd=root_dir, NODE_CMD + ["--port", str(PORT_EVE), "--node-id", "B"] + common_args)
     
     try:
         if not all([wait_for_port(p, timeout=20) for p in [PORT_A, PORT_B, PORT_EVE]]):

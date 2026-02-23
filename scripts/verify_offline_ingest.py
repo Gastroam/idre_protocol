@@ -107,7 +107,11 @@ def test_offline_ingest():
     ]
     
     print(f"[*] Starting Node {NODE_ID} with ring=[8888, 9999]...")
-    proc = subprocess.Popen(cmd)
+    import os
+    env = os.environ.copy()
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env['PYTHONPATH'] = root_dir + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env else '')
+    proc = subprocess.Popen(env=env, cwd=root_dir, cmd)
     
     try:
         if not wait_for_port(PORT):

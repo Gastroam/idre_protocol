@@ -5,14 +5,7 @@ import copy
 import sys
 from pathlib import Path
 
-# Fix Import Path
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-# Add the PARENT of the repo so 'idre_clean' package resolves
-if str(_REPO_ROOT.parent) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT.parent))
-# Also add the repo root itself for direct imports if needed (legacy)
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+
 
 # Fallback for testing environment
 try:

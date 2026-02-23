@@ -60,14 +60,7 @@ class GradientCracker:
     def get_fingerprint(self, w: np.ndarray) -> List[int]:
         # Helper to call scan_fingerprint_bits matches the victim's logic
         out = []
-        for i, (u_p, w_p) in enumerate(self.plane_list):
-            # We must calculate tau per plane?
-            # Node logic: tau = self._tau_for_weights(weights, plane_idx=i)
-            # _tau_for_weights logic:
-            #   a = dot(u, w), b = dot(w, w)
-            #   amp = hypot(a, b)
-            #   tau = amp * tau_frac (0.55 default)
-            # This is ALSO dependent on w!
+        for i, (u_p, w_p) in enumerate(self.plane_list):    
             
             ww = w.reshape(-1)
             a = float(np.dot(u_p, ww))

@@ -1,3 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "idre_clean"
+version = "0.1.0"
+description = "IDRE Protocol V12 Clean Implementation"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+packages = ["core", "hive", "scripts", "attacks"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py311"

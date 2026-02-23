@@ -248,6 +248,7 @@ def main():
         # Capture output for debugging if they fail
         # Use existing vocab.bin from CWD (Repo Root)
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
         proc_a = subprocess.Popen(cmd_base + ["--port", str(p_a), "--node-id", "A"] + common_args, cwd=root_dir, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         proc_b = subprocess.Popen(cmd_base + ["--port", str(p_b), "--node-id", "B"] + common_args, cwd=root_dir, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
         

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 
 # transports/ is excluded from the public repository
-pytest.importorskip("idre_clean.transports.idre_silence")
-from idre_clean.transports.idre_silence import IDRESilenceProtocol
+pytest.importorskip("transports.idre_silence")
+from transports.idre_silence import IDRESilenceProtocol
 
 def test_silence_bytes_roundtrip() -> None:
     # Keep the payload small and the profile fast so CI runs quickly.

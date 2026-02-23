@@ -245,8 +245,12 @@ def main():
         
         print(f"[*] Launching Node A (:{p_a}) and Node B (:{p_b}) ...")
         # Redirect stdout/stderr to capture errors
-        proc_a = subprocess.Popen(cmd_base + ["--port", str(p_a), "--node-id", "A"] + common_args, cwd=str(_REPO_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        proc_b = subprocess.Popen(cmd_base + ["--port", str(p_b), "--node-id", "B"] + common_args, cwd=str(_REPO_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        import os
+        env = os.environ.copy()
+        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        env['PYTHONPATH'] = root_dir + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env else '')
+        proc_a = subprocess.Popen(env=env, cwd=root_dir, cmd_base + ["--port", str(p_a), "--node-id", "A"] + common_args, cwd=str(_REPO_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        proc_b = subprocess.Popen(env=env, cwd=root_dir, cmd_base + ["--port", str(p_b), "--node-id", "B"] + common_args, cwd=str(_REPO_ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         
         # Non-blocking read helper
         try:

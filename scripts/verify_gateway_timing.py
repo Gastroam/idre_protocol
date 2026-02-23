@@ -67,7 +67,11 @@ async def main(healing_mode="none"):
     
     print(f"[*] Starting Gateway: {' '.join(gw_cmd)}")
     # Allow stderr to flow to checking console or capture it
-    gw_proc = subprocess.Popen(gw_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    import os
+    env = os.environ.copy()
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env['PYTHONPATH'] = root_dir + (os.pathsep + env['PYTHONPATH'] if 'PYTHONPATH' in env else '')
+    gw_proc = subprocess.Popen(env=env, cwd=root_dir, gw_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
     
     try:
         print("[*] Collecting samples for 5 seconds...")
