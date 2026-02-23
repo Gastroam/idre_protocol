@@ -38,22 +38,14 @@ try:
     from idre_clean.hive.node import FieldBoundNode
     from idre_clean.hive.utils import canonical_json
 except ImportError:
-    # If running from scripts/, try to add REPO ROOT (parent of idre_clean) to path
-    # script at: f:\idre_clean\scripts\verify_resonant_drift.py
-    # .. -> scripts
-    # ../.. -> idre_clean (PACKAGE)
-    # ../../.. -> f:\ (ROOT)
-    # Wait, if f:\idre_clean is the package, then we want f:\ in sys.path.
+
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
     try:
         from idre_clean.hive.node import FieldBoundNode
         from idre_clean.hive.utils import canonical_json
     except ImportError as e:
         print(f"[!] Failed to import modules: {e}")
-        # Fallback: maybe we are IN the repo root and idre_clean is a subdir?
-        # If f:\idre_clean is the CWD.
-        # sys.path has f:\idre_clean.
-        # We need f:\ to import idre_clean.
+ 
         sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
         try:
              from idre_clean.hive.node import FieldBoundNode
@@ -309,9 +301,6 @@ def main():
         chal_b = chal_resp["challenge"]
 
         # 2. A creates VerifyReq signing B's challenge
-        # We need to ask A to create it.
-        # But wait, A cannot create a VerifyReq for B unless WE tell A the challenge B gave us.
-        # The 'create_verify_req' endpoint on Node A takes 'challenge' as input.
         print("    [A->B] Creating VerifyReq on A...")
         va_resp = _post(a_url + "/hive/v12/verify_req/create", {
             "session_id": sid, "ephemeral_salt": salt, "challenge": chal_b
@@ -368,13 +357,6 @@ def main():
         if "SUCCESS" not in eve_res:
             print(f"[!] Eve failed initial decrypt: {eve_res}")
             return
-        
-        # Eve should be synced now if she sniffed both?
-        # A evolved 2 times (Create Req, Process Req).
-        # Eve sniffed 2 times -> evolved 2 times?
-        # Let's hope.
-
-            # Let's hope.
 
         # 3. Drift Phase (60 Seconds)
         print("\n[*] Drift Phase: A sends messages to B for 60 seconds (Eve sleeps)...")
@@ -409,11 +391,7 @@ def main():
         else:
             print(f"    [Eve] FAILED to decrypt ({res}).")
             print("[SUCCESS] Eve could not decrypt. Resonant Security confirmed!")
-            # This shows how extremely sensitive path dependency is!
-            # If A and B do different numbers of ops, they drift from EACH OTHER too!
-            # Protocol must be symmetric.
-            # Encrypt (A) -> 1 op. Decrypt (B) -> 1 op. Sync maintained.
-            # Eve -> 1 op. Sync maintained.
+
 
     except Exception as e:
         print(f"[!] Error: {e}")
