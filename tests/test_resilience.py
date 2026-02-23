@@ -66,15 +66,10 @@ class TestResilience(unittest.TestCase):
         self.node_b._cached_bits = dummy_field
         
         # Share codec (A -> B)
-        # We need a dummy NeuralCodec or just assume None/Default if backend="frozen"
-        # Frozen backend uses "field" logic but codec is for compression.
-        # Let's ensure they match.
         self.node_b.timelines[self.node_a.node_id][0].codec = self.node_a.timelines[self.node_b.node_id][0].codec
         
         # 3. Align Consensus Anchor (last_ratchet_hash)
-        # Note: Code now uses `last_ratchet_hash` in AAD.
-        # Default is empty string?
-        # Let's set a shared anchor
+        # Set a shared anchor
         anchor = "0xGenesisBlock"
         self.current_anchor = anchor.encode()
         self.node_a.timelines["B (Receiver)"][0].chain_hash = self.current_anchor
@@ -113,14 +108,8 @@ class TestResilience(unittest.TestCase):
             )
             
             # Update Anchor (Chain Hash Simulation) if we expect this to succeed/be processed
-            # Sender ignores update for dropped packets manually?
-            # Test logic:
             if expect_success:
                  import hashlib
-                 # Protocol Update: chain_hash = H(chain_hash + seq)
-                 # Wait, did we change valid update logic in NODE?
-                 # Yes, in hive/node.py we changed `update_chain_hash(chain_hash, seq)`
-                 # So we must replicate that here for the test helper!
                  self.current_anchor = hashlib.sha256(self.current_anchor + struct.pack(">Q", seq_num)).digest()
             
             # 3. Receive

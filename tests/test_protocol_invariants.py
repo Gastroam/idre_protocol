@@ -110,8 +110,6 @@ class TestProtocolInvariants(unittest.TestCase):
         
         res = self.node_b.receive(pkt, "A")
         self.assertEqual(res["status"], "reject")
-        # Could be mac_mismatch or framing_error depending on where we hit.
-        # But crucially:
         self.assertEqual(self.evolve_calls, 0, "Should NOT evolve on auth failure")
 
     def test_receiver_state_binding(self):
@@ -127,7 +125,6 @@ class TestProtocolInvariants(unittest.TestCase):
         
         # A sends 1
         pkt1 = self.node_a.send("B", "Msg 1")
-        # B *skips* 1? No, then seq mismatch.
         # B receives 1, but we tamper B's state.
         res1 = self.node_b.receive(pkt1, "A")
         self.assertEqual(res1["status"], "delivered")

@@ -103,10 +103,7 @@ def configure_node_from_args(args) -> FieldBoundNode:
     try:
         vocab_registry, vocab = load_vocab_registry([str(x) for x in args.vocab_file])
     except Exception as e:
-        # Fallback for testing/CI if vocab.jsonl is missing?
-        # No, strict security. But for now, let's print a warning and let it fail if file missing.
         print(f"[hive.cli] WARNING: Failed to load vocab: {e}")
-        # Proceeding might fail in Node __init__
         vocab = None
         vocab_registry = None
 

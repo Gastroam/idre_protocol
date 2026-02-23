@@ -8,11 +8,7 @@ from collections import deque
 OP_LITERAL = 0x00 # | u16 len | bytes
 OP_PROPOSE = 0x01 # | u32 id  | u16 len | bytes
 OP_RECALL  = 0x02 # | u32 id
-OP_ACK     = 0x03 # | u32 id  | hash(bytes) (32 bytes) OR truncated? 
-                  # User said: OP_ACK | id | hash(data)
-                  # Let's use u32 id + full sha256 to be safe/strict, or trunc?
-                  # User suggested hash(data). Let's stick to full hash for correctness unless overhead is too high. 
-                  # 32 bytes overhead for ACK is fine.
+OP_ACK     = 0x03 # | u32 id  | hash(bytes) (32 bytes)
 OP_EVICT   = 0x04 # | u32 id
 
 # --- Constants ---
@@ -36,16 +32,7 @@ class NeuralCodec:
     """
     def __init__(self, session_key: bytes, role: str = "endpoint"):
         self.session_key = session_key
-        self.role = role # 'sender' or 'receiver' perspective? 
-        # Actually codec is bidirectional? 
-        # Usually a session has two streams: A->B and B->A.
-        # They should probably have independent dictionaries to avoid race conditions.
-        # If this instance handles BOTH directions, it needs two states.
-        # Let's assume this instance handles ONE direction (e.g. Outgoing for encode, Incoming for decode).
-        # Or better: "Peer State" logic. 
-        # For a full duplex session, we need:
-        #   self.encoder_state (My proposals -> Peer)
-        #   self.decoder_state (Peer proposals -> Me)
+        self.role = role
         
         self.encoder = CodecState(session_key, f"{role}_enc")
         self.decoder = CodecState(session_key, f"{role}_dec")
@@ -226,9 +213,6 @@ class CodecState:
              # Evict LRU
              oldest = self.lru.popleft()
              del self.active_dict[oldest]
-             # del self.reverse_dict[self.active_dict[oldest]] # Wait, needed key data
-             # Simplified
-             pass
         
         self.active_dict[did] = data
         self.lru.append(did)

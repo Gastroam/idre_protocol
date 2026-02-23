@@ -173,8 +173,7 @@ class FieldBoundNode:
         self.timelines: Dict[str, List[HiveSession]] = {}
         
         # Healing Mode: "none" (Die), "multiverse" (Fork)
-        # We default to "none" for strict security, unless user asks.
-        # User requested 2 forks active for PoC.
+        # We default to "none" for strict security.
         self.healing_mode = healing_mode
         
         self._challenges = ChallengeStore()
@@ -261,10 +260,7 @@ class FieldBoundNode:
         if not self.plasticity:
             return
         
-        # Anchor Check (Anchors reset anyway, but we still execute the learning step to match 'frozen' logic if needed? 
-        # Actually anchors in 'frozen' don't evolve. In 'lattice', they reset then evolve.
-        # So evolution on anchors is transient.
-        # But for non-anchors, it's persistent.
+        # Evolution on anchors is transient, but persistent for non-anchors.
         
         s = int(seed)
         if self.backend == "frozen":
@@ -298,9 +294,7 @@ class FieldBoundNode:
             bias = float(n.bias)
         else:
             # If backend=lattice, we read current state.
-            # If mutate=True (Legacy/Aggressive), we evolve THEN read.
-            # But for 'Verify-then-Mutate', we likely call with mutate=False (Read then External Evolve).
-            # To preserve 'compatibility' with the old logic (Stimulate-then-Read) for unsuspecting callers:
+            # Preserve compatibility with legacy Stimulate-then-Read logic
             if mutate and self.plasticity:
                  # print(f"[DEBUG] Legacy Mutation in _compute_fingerprint_bits")
                  self._evolve_lattice(s)
@@ -321,27 +315,7 @@ class FieldBoundNode:
         unfolding_mtx = self.topology.unfolding_matrix
         
         for i, (u, w) in enumerate(self._plane_list):
-            tau = self._tau_for_weights(weights, plane_idx=i) # Note: _tau_for_weights likely needs Unfolding too?
-            # Actually _tau_for_weights uses .dot products.
-            # If weights are Folded, we need to Unfold u,w inside _tau_for_weights too?
-            # Yes. But _tau_for_weights definition (lines 231-238) isn't being modified here.
-            # We should probably modify _tau_for_weights or doing the math inline.
-            # Let's check _tau_for_weights content if possible.
-            # Assuming _tau_for_weights takes (weights, plane_idx) and uses self._plane_list[plane_idx].
-            # If so, it uses RAW planes.
-            # So dot(u, w_folded) = GARBAGE.
-            # We need to pass 'unfolding_matrix' to _tau_for_weights?
-            # Or just calculate Tau here manually?
-            # Let's calculate Tau here manually to be safe, overwriting the method call implies changing definition.
-            # Wait, the original code called self._tau_for_weights.
-            # Let's look at what I'm replacing:
-            # tau = self._tau_for_weights(weights, plane_idx=i)
-            
-            # FIX: We need to calculate Tau using UNSCRAMBLED amplitude.
-            # u_prime = u @ P_unfold
-            # w_prime = u @ P_unfold
-            # a = dot(u_prime, weights)
-            # b = dot(w_prime, weights)
+            # Calculate Tau using unscrambled amplitude.
             
             u_prime = np.dot(u, unfolding_mtx)
             w_prime = np.dot(w, unfolding_mtx)
@@ -368,12 +342,8 @@ class FieldBoundNode:
 
     def fingerprint_bits(self, seed: Optional[int] = None, mutate: bool = True, context_data: bytes = b"") -> List[int]:
         s = int(self.seed if seed is None else seed)
-        # Note: If context_data is provided, we can't use the generic cached bits because cache is context-agnostic.
-        # But wait, self._cached_bits is usually for the Identity (Root Seed).
-        # Identity is usually context-free?
-        # User wants: HMAC(pepper, domain_tag || session_id || raw_bits)
-        # If we are doing Identity Proof, session_id is relevant.
-        # So we should probably invalidate/ignore cache if context_data is present.
+        # If context_data is provided, cache should be invalidated or ignored
+        # because the generic cached bits are context-agnostic.
         
         if self.freeze_field and self._cached_bits is not None and s == int(self.seed) and not context_data:
             # Cached bits are ALREADY flavored if we computed them correctly (without context).
@@ -751,9 +721,7 @@ class FieldBoundNode:
         if dst not in self.timelines or not self.timelines[dst]:
              return False
         
-        # We roll back ALL active timelines? Or just the primary?
-        # Typically rollback implies we FAILED to send. Sending works on the 'best' timeline usually.
-        # For simplicity, rollback all active timelines for this peer.
+        # Roll back all active timelines for this peer.
         for sess in self.timelines[dst]:
             if sess.prev_chain_hash:
                 sess.chain_hash = sess.prev_chain_hash
@@ -980,13 +948,9 @@ class FieldBoundNode:
                 print(f"[{self.node_id}] RECV reject from={prev} reason=wrong_profile")
             return {"status": "reject", "reason": "wrong_profile"}
 
-        # Note: We skip checking 'sess' validity here because we might have multiple timelines.
-        # We process validity per-timeline in the loop.
 
         nonce = int(msg.get("nonce", 0))
         
-        # We can't check replay globally yet, need to identify session.
-        # But wait, replay protection is per-session.
         
         created_at_ms = int(msg.get("created_at_ms", 0) or 0)
         expires_at_ms = int(msg.get("expires_at_ms", 0) or 0)
