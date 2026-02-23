@@ -1,8 +1,6 @@
 
 import argparse
 import os
-import secrets
-import sys
 from typing import Dict, Optional
 from idre_clean.hive.node import FieldBoundNode
 from idre_clean.hive.utils import (
@@ -108,12 +106,10 @@ def configure_node_from_args(args) -> FieldBoundNode:
         vocab = None
         vocab_registry = None
 
-    # Ensure pepper is set
+    # Ensure pepper is explicitly provisioned.
     pepper = args.pepper or os.environ.get("IDRE_PEPPER")
     if not pepper:
-        pepper = secrets.token_hex(32)
-        print(f"[*] WARNING: No pepper provided. Randomly generated: {pepper}", file=sys.stderr)
-        print("[*] WARNING: In production, specify --pepper to ensure deterministic identity restoration.", file=sys.stderr)
+        raise SystemExit("ERROR: missing pepper. Set --pepper or IDRE_PEPPER.")
 
     if args.port <= 0:
         args.port = 8890

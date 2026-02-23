@@ -145,6 +145,7 @@ def main() -> int:
     py = sys.executable
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
+    pepper = str(env.get("IDRE_PEPPER", "test_pepper"))
 
     node_a_p = subprocess.Popen(
         [
@@ -159,6 +160,8 @@ def main() -> int:
             "7245",
             "--anchor-seeds",
             "7245",
+            "--pepper",
+            pepper,
             "--freeze-field",
         ],
         cwd=repo_root,
@@ -179,6 +182,8 @@ def main() -> int:
             "7245",
             "--anchor-seeds",
             "7245",
+            "--pepper",
+            pepper,
             "--freeze-field",
             "--print-deliveries",
         ],
@@ -282,4 +287,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

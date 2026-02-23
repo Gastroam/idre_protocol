@@ -160,6 +160,7 @@ def main() -> int:
     py = sys.executable
     env = dict(os.environ)
     env["PYTHONUNBUFFERED"] = "1"
+    pepper = str(env.get("IDRE_PEPPER", "test_pepper"))
 
     port_a = _free_port()
     port_b = _free_port()
@@ -179,6 +180,8 @@ def main() -> int:
             "7245",
             "--anchor-seeds",
             "7245",
+            "--pepper",
+            pepper,
             "--freeze-field",
             "--content-codec",
             str(args.codec),
@@ -205,6 +208,8 @@ def main() -> int:
             "7245",
             "--anchor-seeds",
             "7245",
+            "--pepper",
+            pepper,
             "--freeze-field",
             "--print-deliveries",
             "--content-codec",

@@ -12,9 +12,9 @@ It is meant to answer:
 Start nodes (example):
 
 ```powershell
-python scripts\hive_v12_node_server.py --port 8890 --node-id A --seed 7245 --anchor-seeds 7245 --freeze-field --print-events
-python scripts\hive_v12_node_server.py --port 8891 --node-id B --seed 7245 --anchor-seeds 7245 --freeze-field --print-deliveries --print-events
-python scripts\hive_v12_node_server.py --port 8892 --node-id EVE --seed 8888 --anchor-seeds 8888 --freeze-field --print-events
+python scripts\hive_v12_node_server.py --port 8890 --node-id A --seed 7245 --anchor-seeds 7245 --pepper test_pepper --freeze-field --print-events
+python scripts\hive_v12_node_server.py --port 8891 --node-id B --seed 7245 --anchor-seeds 7245 --pepper test_pepper --freeze-field --print-deliveries --print-events
+python scripts\hive_v12_node_server.py --port 8892 --node-id EVE --seed 8888 --anchor-seeds 8888 --pepper test_pepper --freeze-field --print-events
 ```
 
 Run the suite:

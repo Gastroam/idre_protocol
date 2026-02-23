@@ -639,6 +639,7 @@ class FieldBoundNode:
         hdr["payload"] = payload
         return hdr
 
+    @_with_lock
     def process_verify_req(self, msg: Dict[str, Any], peer_id: str, ttl_s: float = 600.0) -> bool:
         # Validate challenge and expiry first; consume only after signature verifies.
         challenge_in_msg = str(msg.get("challenge", ""))
@@ -682,7 +683,11 @@ class FieldBoundNode:
             return False
 
         # Consume challenge on success (one-time use).
-        self._challenges.consume(str(peer_id), challenge_in_msg)
+        # Must succeed; otherwise another thread consumed it first.
+        if not self._challenges.consume(str(peer_id), challenge_in_msg):
+            if self.print_events:
+                print(f"[{self.node_id}] VERIFY_REQ reject peer={peer_id} (challenge_already_used)")
+            return False
 
         # Epoch Anchor: Initialize rolling chain hash
         genesis_key = genesis_chain_hash(int(self.seed), str(sess_id))

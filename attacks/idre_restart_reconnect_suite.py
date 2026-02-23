@@ -116,7 +116,15 @@ def _hello(base: str) -> Dict[str, Any]:
     return b
 
 
-def _start_node(*, repo_root: str, port: int, node_id: str, seed: int, anchor_seeds: str) -> subprocess.Popen:
+def _start_node(
+    *,
+    repo_root: str,
+    port: int,
+    node_id: str,
+    seed: int,
+    anchor_seeds: str,
+    pepper: str,
+) -> subprocess.Popen:
     py = sys.executable
     args = [
         py,
@@ -129,6 +137,8 @@ def _start_node(*, repo_root: str, port: int, node_id: str, seed: int, anchor_se
         str(int(seed)),
         "--anchor-seeds",
         str(anchor_seeds),
+        "--pepper",
+        str(pepper),
         "--freeze-field",
         "--backend",
         "frozen",
@@ -191,6 +201,7 @@ def main() -> int:
     ap.add_argument("--ttl", type=float, default=600.0)
     ap.add_argument("--port-base", type=int, default=9100)
     ap.add_argument("--seed-rng", type=int, default=1337)
+    ap.add_argument("--pepper", default="test_pepper", help="Shared cluster pepper for spawned nodes.")
     args = ap.parse_args()
 
     rng = random.Random(int(args.seed_rng))
@@ -205,9 +216,30 @@ def main() -> int:
     pa = pb = pe = None
     report: Dict[str, Any] = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "nodes": {"a": a, "b": b, "e": e}, "steps": {}}
     try:
-        pa = _start_node(repo_root=args.repo_root, port=base, node_id="A", seed=int(args.seed), anchor_seeds=str(args.anchor_seeds))
-        pb = _start_node(repo_root=args.repo_root, port=base + 1, node_id="B", seed=int(args.seed), anchor_seeds=str(args.anchor_seeds))
-        pe = _start_node(repo_root=args.repo_root, port=base + 2, node_id="EVE", seed=int(args.eve_seed), anchor_seeds=str(args.anchor_seeds))
+        pa = _start_node(
+            repo_root=args.repo_root,
+            port=base,
+            node_id="A",
+            seed=int(args.seed),
+            anchor_seeds=str(args.anchor_seeds),
+            pepper=str(args.pepper),
+        )
+        pb = _start_node(
+            repo_root=args.repo_root,
+            port=base + 1,
+            node_id="B",
+            seed=int(args.seed),
+            anchor_seeds=str(args.anchor_seeds),
+            pepper=str(args.pepper),
+        )
+        pe = _start_node(
+            repo_root=args.repo_root,
+            port=base + 2,
+            node_id="EVE",
+            seed=int(args.eve_seed),
+            anchor_seeds=str(args.anchor_seeds),
+            pepper=str(args.pepper),
+        )
 
         report["steps"]["health_a"] = _wait_health(a, timeout_s=10)
         report["steps"]["health_b"] = _wait_health(b, timeout_s=10)
@@ -243,7 +275,14 @@ def main() -> int:
 
         # Restart B (simulate network death / process restart)
         _stop_proc(pb)
-        pb = _start_node(repo_root=args.repo_root, port=base + 1, node_id="B", seed=int(args.seed), anchor_seeds=str(args.anchor_seeds))
+        pb = _start_node(
+            repo_root=args.repo_root,
+            port=base + 1,
+            node_id="B",
+            seed=int(args.seed),
+            anchor_seeds=str(args.anchor_seeds),
+            pepper=str(args.pepper),
+        )
         report["steps"]["health_b_after_restart"] = _wait_health(b, timeout_s=10)
 
         # Attack attempt 1: replay captured VERIFY_REQ (should fail: bad_challenge because challenges are one-time and in-memory)

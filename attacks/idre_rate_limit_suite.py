@@ -67,7 +67,15 @@ def _wait_health(base: str, timeout_s: float = 10.0) -> None:
     raise RuntimeError(f"health_timeout {base}: {last}")
 
 
-def _start_node(*, repo_root: str, port: int, node_id: str, seed: int, anchor_seeds: str) -> subprocess.Popen:
+def _start_node(
+    *,
+    repo_root: str,
+    port: int,
+    node_id: str,
+    seed: int,
+    anchor_seeds: str,
+    pepper: str,
+) -> subprocess.Popen:
     py = sys.executable
     args = [
         py,
@@ -80,6 +88,8 @@ def _start_node(*, repo_root: str, port: int, node_id: str, seed: int, anchor_se
         str(int(seed)),
         "--anchor-seeds",
         str(anchor_seeds),
+        "--pepper",
+        str(pepper),
         "--freeze-field",
         "--backend",
         "frozen",
@@ -137,6 +147,7 @@ def main() -> int:
     ap.add_argument("--port-base", type=int, default=9400)
     ap.add_argument("--seed-rng", type=int, default=1337)
     ap.add_argument("--n", type=int, default=200, help="Requests per hammer loop.")
+    ap.add_argument("--pepper", default="test_pepper", help="Shared cluster pepper for spawned test node.")
     args = ap.parse_args()
 
     rng = random.Random(int(args.seed_rng))
@@ -147,7 +158,14 @@ def main() -> int:
     p = None
     report: Dict[str, Any] = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "node": base, "steps": {}}
     try:
-        p = _start_node(repo_root=args.repo_root, port=port, node_id="A", seed=int(args.seed), anchor_seeds=str(args.anchor_seeds))
+        p = _start_node(
+            repo_root=args.repo_root,
+            port=port,
+            node_id="A",
+            seed=int(args.seed),
+            anchor_seeds=str(args.anchor_seeds),
+            pepper=str(args.pepper),
+        )
         _wait_health(base, timeout_s=10)
 
         n = int(args.n)
