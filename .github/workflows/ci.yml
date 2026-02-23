@@ -48,7 +48,7 @@ jobs:
         run: |
           python -m pytest tests/ -q --tb=short
 
-      - name: Integration: Rate Limit Suite
+      - name: "Integration: Rate Limit Suite"
         working-directory: idre_clean
         run: |
           python attacks/idre_rate_limit_suite.py --n 50
