@@ -7,7 +7,6 @@ This script executes the attack vectors outlined in live_attack_plan.md
 against the publicly deployed Demo API and raw node endpoints.
 """
 import sys
-import json
 import time
 import statistics
 import requests
@@ -103,8 +102,6 @@ def phase_1_timing_side_channel():
         return
 
     orig_payload = list(wire_msg["payload"])
-    
-    latencies = []
     
     # 1. Baseline (Valid)
     times = []
@@ -274,7 +271,7 @@ def phase_3_fuzzing():
                     log_fail(f"VULNERABILITY: '{fv['desc']}' was accepted or crashed into unexpected JSON: {res}")
             else:
                 log_fail(f"VULNERABILITY: '{fv['desc']}' caused HTTP {r.status_code} (possible crash/500)")
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
              log_succ(f"SUCCESS: Passed '{fv['desc']}' - Request aborted cleanly (Nginx/Gunicorn drop).")
 
 def main():

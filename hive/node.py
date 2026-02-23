@@ -26,7 +26,7 @@ from .utils import (
     compute_field_profile_id,
     _now_ms,
     frame_payload, unframe_payload, 
-    pack_plaintext, unpack_plaintext, MAC_LEN, DEFAULT_MAX_CT_LEN, RESONANT_SIGNATURE,
+    pack_plaintext, unpack_plaintext, DEFAULT_MAX_CT_LEN, RESONANT_SIGNATURE,
     DEFAULT_MAX_PAYLOAD_INTS,
     DEFAULT_CHALLENGE_TTL_MS, DEFAULT_SKEW_MS, 
     DEFAULT_MAX_TTL_MS, DEFAULT_DEFAULT_TTL_MS, 

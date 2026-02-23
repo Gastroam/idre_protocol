@@ -1,5 +1,8 @@
 
 import argparse
+import os
+import secrets
+import sys
 from typing import Dict, Optional
 from idre_clean.hive.node import FieldBoundNode
 from idre_clean.hive.utils import (
@@ -136,7 +139,7 @@ def configure_node_from_args(args) -> FieldBoundNode:
         max_plaintext_bytes=int(args.max_plaintext_bytes),
         plasticity=bool(args.enable_plasticity),
         healing_mode=str(args.healing_mode),
-        pepper=str(getattr(args, 'pepper', '')),
+        pepper=str(pepper),
     )
     
     # Protocol Limits
