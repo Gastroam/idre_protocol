@@ -1,33 +1,50 @@
 import numpy as np
 import hashlib
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
+
+def _expand_bytes(seed: bytes, n: int, domain: bytes) -> bytes:
+    out = bytearray()
+    counter = 0
+    while len(out) < int(n):
+        out.extend(hashlib.sha256(domain + seed + counter.to_bytes(4, "big")).digest())
+        counter += 1
+    return bytes(out[: int(n)])
+
+def deterministic_shuffle_and_signs(dim: int, seed: int) -> Tuple[List[int], List[int]]:
+    s_bytes = seed.to_bytes(8, "big", signed=False)
+    stream = _expand_bytes(s_bytes, dim * 4, b"TOPOLOGY/FOLD/")
+    
+    perm = list(range(dim))
+    signs = [1] * dim
+    
+    # Fisher-Yates with SHA256 entropy
+    for i in range(dim - 1, 0, -1):
+        idx = i * 4
+        rand_val = int.from_bytes(stream[idx:idx+4], "big")
+        j = rand_val % (i + 1)
+        perm[i], perm[j] = perm[j], perm[i]
+        
+    stream_signs = _expand_bytes(s_bytes, dim, b"TOPOLOGY/SIGNS/")
+    for i in range(dim):
+        if stream_signs[i] % 2 == 0:
+            signs[i] = -1
+            
+    return perm, signs
 
 def generate_orthonormal_matrix(dim: int, seed: int) -> np.ndarray:
     """
-    Generate a deterministic random orthonormal matrix (Rotation/Reflection).
-    Used as the Folding Matrix P_fold.
+    Generate a deterministic random orthonormal matrix (Signed Permutation).
+    Used as the Folding Matrix P_fold. Pure Integer Geometry.
     """
     if dim < 1:
         raise ValueError("dim must be >= 1")
     
-    # Deterministic RNG
-    s_bytes = seed.to_bytes(8, "big", signed=False)
-    rng_seed = int.from_bytes(hashlib.sha256(b"TOPOLOGY/FOLD/" + s_bytes).digest()[:8], "big")
-    rng = np.random.default_rng(rng_seed)
-    
-    # Generate random matrix
-    X = rng.normal(0.0, 1.0, size=(dim, dim))
-    
-    # QR Decomposition to get Orthogonal Q
-    Q, R = np.linalg.qr(X)
-    
-    # Ensure determinism (QR phase can vary, strictly enforce diagonal of R positive)
-    # This is standard trick to make QR unique
-    d = np.diagonal(R)
-    ph = np.sign(d)
-    Q *= ph
-    
-    return Q
+    perm, signs = deterministic_shuffle_and_signs(dim, seed)
+    P = np.zeros((dim, dim), dtype=np.int64)
+    for i in range(dim):
+        P[i, perm[i]] = signs[i]
+        
+    return P
 
 def fold_vector(v: np.ndarray, P_fold: np.ndarray) -> np.ndarray:
     """

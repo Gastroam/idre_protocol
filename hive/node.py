@@ -469,7 +469,7 @@ class FieldBoundNode:
             session_id=session_id,
             nonce=nonce,
             ephemeral_salt=ephemeral_salt,
-            pad_bytes=0,
+            pad_bytes=512,  # IDRE V2: Enforce constant-size cell framing
             max_bytes=int(self.max_plaintext_bytes),
             codec=codec,
             injected_packets=list(injected_packets or [])

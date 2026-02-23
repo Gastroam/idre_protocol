@@ -109,25 +109,16 @@ def encrypt_stream(
     # Format: [Len (4 bytes)] [Data] [Pad]
     blob = struct.pack(">I", int(len(data))) + data
     
-    # 3. Pad (Random or Zero? Original logic implies pad_bytes param, but where is it used?)
-    # Original logic passed pad_bytes to `_crypt`? No, `_crypt` doesn't take pad_bytes.
-    # Original `encrypt_bytes`:
-    # blob = len + data
-    # pt = [b for b in blob]
-    # ct = _crypt(...)
-    # Wait, where did pad_bytes go in original?
-    # It seems `pad_bytes` arg in `encrypt_bytes` was UNUSED in `hive/node.py` snippet I saw!
-    # Let's double check.
-    # Line 420: `pad_bytes=int(pad_bytes)` passed to `encrypt_bytes`.
-    # Line 426+: `encrypt_bytes` signature has `pad_bytes`.
-    # Line 446: `blob = struct.pack(...) + data`. 
-    # Line 447: `pt = [b for b in blob]`.
-    # Line 449: `_crypt` called.
-    # Result: `pad_bytes` IS IGNORED in original `node.py`. Technical Debt!
-    # I will ignore it here too to match behavior, or implement it?
-    # Best to match behavior for now to avoid breaking wire format.
-    
+    # 3. Pad (Random bytes)
     pt = [b for b in blob]
+    if pad_bytes > 0:
+        current_len = len(pt)
+        if current_len < pad_bytes:
+            padding_needed = pad_bytes - current_len
+            import secrets
+            padding = [secrets.randbits(8) for _ in range(padding_needed)]
+            pt.extend(padding)
+            
     return crypt_with_bits(framed=pt, bits=bits, session_id=session_id, nonce=nonce, ephemeral_salt=ephemeral_salt, encrypt=True)
 
 def decrypt_stream(
