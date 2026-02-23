@@ -49,23 +49,28 @@ class TestProtocolInvariants(unittest.TestCase):
         self.assertEqual(res1["status"], "delivered")
         
         # Check Sequence State
-        self.assertEqual(self.node_a.sessions["B"].out_seq, 1)
-        self.assertEqual(self.node_b.sessions["A"].in_seq, 1)
+        self.assertEqual(self.node_a.sessions["B"].out_seq, 2)
+        self.assertEqual(self.node_b.sessions["A"].in_seq, 2)
 
         # A sends 2
         pkt2 = self.node_a.send("B", "Msg 2")
         # Sanity Check
         res2 = self.node_b.receive(pkt2, "A")
         self.assertEqual(res2["status"], "delivered")
-        self.assertEqual(self.node_b.sessions["A"].in_seq, 2)
+        self.assertEqual(self.node_b.sessions["A"].in_seq, 3)
 
-        # Drop 3, Send 4 (Strict Sequencing should REJECT)
+        # Drop 3 through 8, Send 9 (Outside Strict Sequencing Window should REJECT)
         self.node_a.send("B", "Msg 3 (Dropped)") # out_seq=3
-        pkt4 = self.node_a.send("B", "Msg 4")       # out_seq=4
-        res4 = self.node_b.receive(pkt4, "A")
-        self.assertEqual(res4["status"], "reject", "Must reject out-of-order packet")
-        self.assertEqual(res4["reason"], "mac_mismatch", "AAD mismatch causes MAC failure")
-        self.assertEqual(self.node_b.sessions["A"].in_seq, 2, "in_seq must not advance")
+        self.node_a.send("B", "Msg 4 (Dropped)") # out_seq=4
+        self.node_a.send("B", "Msg 5 (Dropped)") # out_seq=5
+        self.node_a.send("B", "Msg 6 (Dropped)") # out_seq=6
+        self.node_a.send("B", "Msg 7 (Dropped)") # out_seq=7
+        self.node_a.send("B", "Msg 8 (Dropped)") # out_seq=8
+        pkt9 = self.node_a.send("B", "Msg 9")       # out_seq=9
+        res9 = self.node_b.receive(pkt9, "A")
+        self.assertEqual(res9["status"], "reject", "Must reject out-of-order packet beyond recovery window")
+        self.assertEqual(res9["reason"], "mac_mismatch", "AAD mismatch causes MAC failure")
+        self.assertEqual(self.node_b.sessions["A"].in_seq, 3, "in_seq must not advance")
 
     def test_no_plasticity_on_replay(self):
         """Invariant: Replay must be rejected BEFORE plasticity (lattice evolution)."""
@@ -101,9 +106,9 @@ class TestProtocolInvariants(unittest.TestCase):
 
         # Send packet with WRONG KEY (tampered payload)
         pkt = self.node_a.send("B", "Valid message")
-        # Tamper payload (flip last byte of tag/ciphertext)
-        # payload is list[int].
-        pkt["payload"][-1] ^= 0xFF 
+        # Tamper payload (flip first byte of ciphertext, [0] is length, [1] is first ct byte)
+        # payload is list[int]. Extra padding at end is ignored, so we must mutate inside ct or tag.
+        pkt["payload"][1] ^= 0xFF 
         
         res = self.node_b.receive(pkt, "A")
         self.assertEqual(res["status"], "reject")

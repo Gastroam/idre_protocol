@@ -1,5 +1,4 @@
 import requests
-import json
 
 BASE_URL = 'https://idre.mti-evo.online'
 

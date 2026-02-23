@@ -7,7 +7,6 @@ This script executes the attack vectors outlined in live_attack_plan.md
 against the publicly deployed Demo API and raw node endpoints.
 """
 import sys
-import os
 import json
 import time
 import statistics
