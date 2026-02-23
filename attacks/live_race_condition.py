@@ -5,11 +5,11 @@ import concurrent.futures
 import requests
 from pathlib import Path
 
-_REPO_PARENT = str(Path(__file__).resolve().parents[1])
+_REPO_PARENT = str(Path(__file__).resolve().parents[2])
 if _REPO_PARENT not in sys.path:
     sys.path.insert(0, _REPO_PARENT)
 
-TARGET_URL = "http://idre.mti-evo.online"  # Live Node URL
+TARGET_URL = "https://idre.mti-evo.online"  # Live Node URL
 
 def run_live_race_test(target_url):
     print(f"[*] Targeting live node at: {target_url}")
@@ -34,10 +34,11 @@ def run_live_race_test(target_url):
     # We can do this using FieldBoundNode locally, assuming we know the pepper and seed.
     # However, if it's purely a race condition test, we can just send the SAME message concurrently.
     # To create the message, we can instantiate a temporary local node just to sign it.
-    from idre_clean.hive.node import FieldBoundNode
     try:
+        from idre_clean.hive.node import FieldBoundNode
         from idre_clean.core.vocab_codec import Vocab
     except ImportError:
+        from hive.node import FieldBoundNode
         from core.vocab_codec import Vocab
 
     tokens = ["<pad>", "<a>", "<b>", "<c>"]
@@ -45,12 +46,6 @@ def run_live_race_test(target_url):
     dummy_vocab = Vocab(tokens=tokens, token_to_index=t2i, vocab_id=b"DUMMY", lens_by_first_char={})
 
     
-    # Re-use the HiveClient to make it easier to create the request
-    try:
-        from idre_clean.hive.client import HiveClient
-        client = HiveClient("http://127.0.0.1:9999") # Dummy URL, we just use it for create_verify_req
-    except:
-        pass
 
     print("[*] Generating VerifyReq locally...")
     node = FieldBoundNode(
@@ -74,12 +69,11 @@ def run_live_race_test(target_url):
     )
     
     # Create the VERIFY_REQ payload
-    req = node.create_verify_req(
+    msg = node.create_verify_req(
         session_id="RACE_SESS_LIVE_1",
         ephemeral_salt=99999,
         challenge=chal
     )
-    msg = req["msg"]
 
     print("[*] Submitting identical VerifyReq 20 times concurrently...")
     
