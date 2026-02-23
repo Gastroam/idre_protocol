@@ -517,7 +517,8 @@ def main():
     print("[*] Starting Nodes A, B, and Eve (Real Processes)...")
     common_args = [
         "--seed", str(SEED),
-        "--planes", "4"
+        "--planes", "4",
+        "--pepper", "test_pepper"
     ]
     
     # Check if servers are already running (manual mode compatibility)

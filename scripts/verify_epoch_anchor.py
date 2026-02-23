@@ -42,7 +42,8 @@ def run_test():
         "--planes", "4",
         "--backend", "lattice",
         "--enable-plasticity",
-        "--print-events"
+        "--print-events",
+        "--pepper", "test_pepper"
     ]
     
     print("[*] Starting Nodes A, B, and Eve (Clone)...")

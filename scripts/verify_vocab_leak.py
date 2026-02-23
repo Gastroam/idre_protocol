@@ -239,7 +239,8 @@ def main():
             "--content-codec", "vocab", 
             "--vocab-file", "vocab_small.json",
             "--planes", "4",
-            "--backend", "frozen"
+            "--backend", "frozen",
+            "--pepper", "test_pepper"
         ]
         
         print(f"[*] Launching Node A (:{p_a}) and Node B (:{p_b}) ...")

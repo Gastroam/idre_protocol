@@ -29,6 +29,7 @@ def main() -> int:
     httpd.max_body_bytes = int(args.max_body_bytes)  # type: ignore[attr-defined]
     httpd.rl_challenge_ip = TokenBucketLimiter(rate_per_s=float(args.rl_challenge_rps), burst=float(args.rl_challenge_burst))  # type: ignore[attr-defined]
     httpd.rl_verify_ip = TokenBucketLimiter(rate_per_s=float(args.rl_verify_rps), burst=float(args.rl_verify_burst))  # type: ignore[attr-defined]
+    httpd.rl_receive_ip = TokenBucketLimiter(rate_per_s=float(args.rl_receive_rps), burst=float(args.rl_receive_burst)) # type: ignore[attr-defined]
 
     print(
         f"[hive_v12_node_server] node_id={node.node_id} seed={node.seed} port={args.port} "

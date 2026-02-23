@@ -20,6 +20,8 @@ DEFAULT_RL_CHALLENGE_RPS = 5.0
 DEFAULT_RL_CHALLENGE_BURST = 10.0
 DEFAULT_RL_VERIFY_RPS = 2.0
 DEFAULT_RL_VERIFY_BURST = 5.0
+DEFAULT_RL_RECEIVE_RPS = 10.0
+DEFAULT_RL_RECEIVE_BURST = 50.0
 
 def parse_int_tuple(value: str):
     if not value:
@@ -70,6 +72,8 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
     ap.add_argument("--rl-challenge-burst", type=float, default=DEFAULT_RL_CHALLENGE_BURST)
     ap.add_argument("--rl-verify-rps", type=float, default=DEFAULT_RL_VERIFY_RPS)
     ap.add_argument("--rl-verify-burst", type=float, default=DEFAULT_RL_VERIFY_BURST)
+    ap.add_argument("--rl-receive-rps", type=float, default=DEFAULT_RL_RECEIVE_RPS)
+    ap.add_argument("--rl-receive-burst", type=float, default=DEFAULT_RL_RECEIVE_BURST)
     
     # Codec / Vocab
     ap.add_argument("--content-codec", choices=["utf8", "vocab"], default="utf8")

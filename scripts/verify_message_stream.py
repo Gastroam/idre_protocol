@@ -101,6 +101,7 @@ def setup_node(node_id: str, seed: int, port: int) -> TestNode:
         content_codec="utf8",
         max_plaintext_bytes=65535,
         vocab=_get_dummy_vocab(),  # Mandatory for Vector Folding
+        pepper="test_pepper",
     )
 
 

@@ -254,6 +254,7 @@ def main():
             "--backend", "lattice",
             "--enable-plasticity",
             "--content-codec", "utf8",
+            "--pepper", "test_pepper",
         ]
         
         print(f"[*] Launching Node A (:{p_a}) and Node B (:{p_b}) [Lattice+Plasticity]...")

@@ -106,7 +106,8 @@ def test_offline_ingest():
         "--backend", "lattice",
         "--enable-plasticity", 
         "--offline-seed-ring", "8888, 9999", # The Ring
-        "--print-events"
+        "--print-events",
+        "--pepper", "test_pepper"
     ]
     
     print(f"[*] Starting Node {NODE_ID} with ring=[8888, 9999]...")
