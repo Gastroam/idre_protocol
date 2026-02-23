@@ -490,12 +490,16 @@ class FieldBoundNode:
         tag = hmac.new(key, (aad or b"") + bytes(int(x) & 0xFF for x in ct_ints), hashlib.sha256).digest()
         
         # ---------------------------------------------------------
+        # IDRE V2 Traffic Analysis Mitigation: Strict Constant-Size Cells
         MAC_LEN = 32
-        base_len = 1 + len(ct_ints) + MAC_LEN
-        CELL_SIZE = 256
-        remainder = base_len % CELL_SIZE
-        dynamic_pad = (CELL_SIZE - remainder) if remainder else 0
-        total_pad = pad_bytes + dynamic_pad
+        # Wire Format: len(n_bytes) + len(ct_ints) + MAC_LEN = 4 + len(ct_ints) + 32
+        base_len = 4 + len(ct_ints) + MAC_LEN
+        
+        target_cell_size = self.max_payload_ints  # e.g., 512
+        if base_len > target_cell_size:
+             raise ValueError("Payload exceeds strict constant-size cell limit.")
+             
+        total_pad = target_cell_size - base_len
 
         # Frame
         return frame_payload(ct_ints, tag, pad_bytes=total_pad), tag
