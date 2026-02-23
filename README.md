@@ -3,7 +3,7 @@
 A field-bound cryptographic protocol for sovereign, pre-provisioned networks.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-55_passing-brightgreen.svg)](#tests)
+[![Tests](https://img.shields.io/badge/tests-62_passing-brightgreen.svg)](#tests)
 [![Paper](https://img.shields.io/badge/paper-v2.4-orange.svg)](docs/IDRE-PAPER-v1)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](#quickstart)
 
