@@ -229,7 +229,11 @@ class StateStoreV3:
             raise StateStoreError("corrupt_or_tampered_state", str(exc)) from exc
 
     def save_session(self, session: SessionV3) -> None:
-        """Persist session metadata and both directional states atomically."""
+        """Persist session metadata and both directional states atomically.
+
+        Refuses to reopen an already-closed direction for the same `session_id`
+        (e.g., after administrative backup restore).
+        """
         sess_mac = self._mac(
             b"IDRE-V3-STORE-SESSION",
             session.peer_node_id.encode("utf-8"),
@@ -242,6 +246,19 @@ class StateStoreV3:
         )
         self._conn.execute("BEGIN IMMEDIATE;")
         try:
+            for d_state in (session.tx, session.rx):
+                existing = self._conn.execute(
+                    "SELECT state_blob, state_mac FROM direction_states WHERE session_id = ? AND direction = ?;",
+                    (session.session_id, d_state.direction),
+                ).fetchone()
+                if existing is not None:
+                    prev = self._get_direction_in_tx(session.session_id, d_state.direction)
+                    if prev.closed and not d_state.closed:
+                        raise StateStoreError(
+                            "cannot_reopen_closed_direction",
+                            f"direction {d_state.direction} is closed and cannot be reopened",
+                        )
+
             self._conn.execute(
                 """
                 INSERT INTO sessions(
@@ -324,6 +341,8 @@ class StateStoreV3:
     def get_pending_packet_bytes(self, session_id: bytes, direction: str) -> Optional[bytes]:
         """Return exact stored pending packet bytes for retransmission, or None if idle."""
         state = self.load_direction(session_id, direction)
+        if state.closed:
+            raise StateStoreError("closed_direction", "cannot retransmit from a closed direction")
         if state.pending_send is None:
             return None
         ps = state.pending_send
@@ -474,13 +493,26 @@ def commit_received(
     delivery_id = DeliveryIdV3(session_id, direction, result.epoch, result.seq)
 
     if result.is_duplicate:
-        # Duplicate of already-committed packet: verify inbox record exists, perform NO state change
+        # Duplicate of already-committed packet: verify inbox row AND its MAC, perform NO state change
         existing = store._conn.execute(
-            "SELECT packet_digest FROM inbox WHERE session_id = ? AND direction = ? AND epoch = ? AND seq = ?;",
+            "SELECT packet_digest, plaintext, row_mac FROM inbox WHERE session_id = ? AND direction = ? AND epoch = ? AND seq = ?;",
             (session_id, direction, result.epoch, result.seq),
         ).fetchone()
-        if existing is None or not hmac.compare_digest(bytes(existing[0]), result.packet_digest):
+        if existing is None:
             raise StateStoreError("inconsistent_duplicate_inbox")
+        dig_b, pt_str, mac_b = bytes(existing[0]), str(existing[1]), bytes(existing[2])
+        if not hmac.compare_digest(dig_b, result.packet_digest):
+            raise StateStoreError("inconsistent_duplicate_inbox")
+        expected_mac = store._mac(
+            b"IDRE-V3-STORE-INBOX",
+            session_id,
+            direction.encode("ascii"),
+            struct.pack(">I Q", result.epoch, result.seq),
+            dig_b,
+            pt_str.encode("utf-8"),
+        )
+        if not hmac.compare_digest(mac_b, expected_mac):
+            raise StateStoreError("corrupt_or_tampered_inbox")
         return delivery_id
 
     store._conn.execute("BEGIN IMMEDIATE;")
@@ -544,6 +576,40 @@ def apply_ack(
         if current.pending_send is None:
             raise EngineError("no_pending_send")
         ps = current.pending_send
+        # Verify the pending outbox row exists, matches pending_send, and passes MAC verification
+        outbox_row = store._conn.execute(
+            """
+            SELECT packet_bytes, packet_digest, status, row_mac
+            FROM outbox
+            WHERE session_id = ? AND direction = ? AND epoch = ? AND seq = ?;
+            """,
+            (session_id, direction, ps.epoch, ps.seq),
+        ).fetchone()
+        if outbox_row is None:
+            raise StateStoreError("inconsistent_outbox", "missing pending outbox row on ACK")
+        ob_pkt, ob_dig, ob_status, ob_mac = (
+            bytes(outbox_row[0]),
+            bytes(outbox_row[1]),
+            str(outbox_row[2]),
+            bytes(outbox_row[3]),
+        )
+        expected_pending_mac = store._mac(
+            b"IDRE-V3-STORE-OUTBOX",
+            session_id,
+            direction.encode("ascii"),
+            struct.pack(">I Q", ps.epoch, ps.seq),
+            ob_pkt,
+            ob_dig,
+            ob_status.encode("ascii"),
+        )
+        if (
+            ob_status != "pending"
+            or not hmac.compare_digest(ob_mac, expected_pending_mac)
+            or not hmac.compare_digest(ob_pkt, ps.packet_bytes)
+            or not hmac.compare_digest(ob_dig, ps.packet_digest)
+        ):
+            raise StateStoreError("corrupt_or_tampered_outbox", "outbox row inconsistent with pending_send")
+
         resolved_state = validate_ack(
             current,
             ack_packet,
@@ -559,13 +625,15 @@ def apply_ack(
             ps.packet_digest,
             b"acked",
         )
-        store._conn.execute(
+        cur = store._conn.execute(
             """
             UPDATE outbox SET status = 'acked', row_mac = ?
-            WHERE session_id = ? AND direction = ? AND epoch = ? AND seq = ?;
+            WHERE session_id = ? AND direction = ? AND epoch = ? AND seq = ? AND status = 'pending';
             """,
             (acked_mac, session_id, direction, ps.epoch, ps.seq),
         )
+        if cur.rowcount != 1:
+            raise StateStoreError("inconsistent_outbox", "failed to mark pending outbox row as acked")
         store._put_direction_in_tx(session_id, resolved_state)
         store._fire_hook("before_ack_commit")
         store._conn.execute("COMMIT;")

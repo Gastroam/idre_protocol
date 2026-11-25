@@ -12,18 +12,17 @@
 
 Implemented in [pointer_candidates.py](../../benchmarks/v3/pointer_candidates.py) and tested in [test_pointer_candidates.py](../../tests/v3/test_pointer_candidates.py):
 
-1. **`FeistelPointerV3` (Candidate A):** 4-round balanced Feistel permutation with cycle-walking over exact domain `0..N-1`, keyed by `FieldViewV3.binding_bytes` and domain-separated per `(context, token_pos)`.
-   - **Inversion & Collisions:** 100% bijective (`0` collisions) across arbitrary `N >= 2`; `O(1)` memory and **expected `O(1)`** encode/decode time (cycle-walking averages `< 4` iterations because `N > 2^(total_bits - 2)`, though worst-case iteration count is probabilistic rather than strict worst-case `O(1)`).
-   - **Small-domain security caveat:** A 4-round balanced Feistel network is **not** a proven strong PRP on tiny domains (e.g., `N = 4`, 2-bit halves) where Luby-Rackoff bounds do not apply. Any production small-domain inner-pointer scheme would require a reviewed small-domain FPE construction (e.g., Swap-or-Not or NIST SP 800-38G FF1 with a sufficient domain) rather than 4-round Feistel.
-   - **Repeated-token leakage:** Eliminated across positions because `token_pos` is bound into every round; reusing `(state, context, token_pos)` leaks equality (proving per-position freshness is mandatory).
-   - **Wrong-field behavior:** Produces a pseudorandom wrong index (requires outer AEAD or inner integrity tag to reject cleanly).
+1. **`FeistelPointerV3` (Candidate A):** 4-round balanced Feistel permutation with cycle-walking over the supported 4-byte index domain (`2 <= N <= 2^32`), keyed by `FieldViewV3.binding_bytes` and domain-separated per `(context, token_pos)`.
+   - **Inversion, Space & Cycle-Walking Bounds:** Provides an invertible, collision-free mapping over `2 <= N <= 2^32` using `O(1)` auxiliary space. Let `M` be the padded Feistel domain (`M < 4N`). Over uniformly selected valid input indices, cycle-walking requires at most `M / N < 4` permutation evaluations on average; an individual input can require up to `M - N + 1` evaluations (a deterministic upper bound).
+   - **Small-Domain & Security Caveats:** For `N = 4`, the block is 2 bits wide (1-bit left and right halves). Generic 4-round Luby–Rackoff bounds depend on half-block width and become uninformative on tiny halves. Binding `token_pos` into the round inputs provides context separation (whereas reusing `(state, context, token_pos)` leaks exact equality), but context separation and functional bijectivity do **not** by themselves establish PRP security or unlinkability.
+   - **Wrong-Field Behavior:** Decoding with a mismatched field produces an in-domain index (which can coincidentally equal the original index); the permutation supplies no pointer-layer authentication and requires outer AEAD or an inner integrity tag.
 2. **`KeyedHashPermutationBaseline` (Candidate B):** Identical Feistel bijection keyed by a 32-byte SHA-256 hash-state instead of the 64-dim neural field.
    - Achieves the **exact same P7 functional property** at identical per-token cost and lower state overhead.
 3. **`PrfTagLookupPointer` (Candidate C):** 64-bit truncated HMAC tag `HMAC(binding_bytes, context || token_pos || idx)[:8]`.
-   - Immediately rejects wrong-field decoding (`None`), but requires an `O(N)` reverse scan or `O(N)` per-position table — prohibitive for realistic vocabularies.
+   - Provides probabilistic wrong-field detection (`None` except under a truncated-tag collision), but requires an `O(N)` reverse scan or `O(N)` per-position table — prohibitive for realistic vocabularies.
 
 ## 3. Explicit Research Decision
 
-- **Functional feasibility:** `FeistelPointerV3` satisfies the P7 functional interface (invertible, zero-collision, O(1) memory, per-position unlinkable inner pointers requiring current state capability even when the fixed vocabulary is known).
-- **Neural uniqueness (G4):** Because `KeyedHashPermutationBaseline` achieves the identical P7 property under the same 32-byte entropy budget, intrinsic pointer hiding is a property of **keyed per-position format-preserving encryption**, not a unique property of neural weights.
-- **Protocol decision:** Retain **M1 (`wire_field_bound_m1`)** as the frozen `IDRE/3.0` shipping profile per owner decision D2. Keep `FeistelPointerV3` archived as an experimental laboratory reference (`IDRE/3.1-exp-pointer`) without claiming neural cryptographic novelty.
+- **Functional feasibility:** `FeistelPointerV3` satisfies the P7 functional interface (invertible, collision-free mapping over `2 <= N <= 2^32` with `O(1)` auxiliary space and per-position context separation).
+- **Neural uniqueness (G4):** Because `KeyedHashPermutationBaseline` achieves the identical functional property under the same 32-byte entropy budget, intrinsic pointer hiding is a property of **keyed per-position format-preserving encryption**, not a unique property of neural weights.
+- **Protocol decision:** Retain **M1 (`wire_field_bound_m1`)** as the frozen `IDRE/3.0` shipping profile per owner decision D2. Keep `FeistelPointerV3` archived as an experimental laboratory reference (`IDRE/3.1-exp-pointer`) without claiming PRP security, unlinkability, or neural cryptographic novelty.

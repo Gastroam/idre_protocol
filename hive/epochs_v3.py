@@ -123,7 +123,9 @@ def apply_epoch_event_v3(
         next_seq=0,
         chain_secret=next_chain,
         last_epoch_hash=event.block_hash,
-        last_accepted=None,
+        # Preserve `last_accepted` so a sender retrying an already-accepted
+        # old-epoch packet after a lost ACK still receives the cached ACK.
+        last_accepted=state.last_accepted,
     )
     return next_state, True
 

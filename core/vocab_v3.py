@@ -18,6 +18,7 @@ from typing import Dict, List, Tuple
 
 from core.profile_v3 import compute_vocab_digest_v3
 from core.vocab_codec import (
+    MAX_TEXT_BYTES,
     Vocab,
     _compute_vocab_id,
     decode_text,
@@ -139,6 +140,10 @@ def encode_strict_v3(text: str, vocab: Vocab, *, max_plaintext_bytes: int) -> by
         raise VocabManifestError("text must be str")
     if max_plaintext_bytes <= 0:
         raise VocabManifestError("max_plaintext_bytes must be positive")
+    if len(text.encode("utf-8")) > MAX_TEXT_BYTES:
+        raise VocabManifestError(
+            f"text_too_large: {len(text.encode('utf-8'))} > {MAX_TEXT_BYTES}"
+        )
     try:
         blob = encode_text(text, vocab, allow_literals=False)
     except ValueError as exc:
