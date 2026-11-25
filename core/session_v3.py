@@ -20,6 +20,7 @@ import struct
 from dataclasses import dataclass, replace
 from typing import Optional
 
+from core.codec_v3 import DictStateV3, decode_dict_state_v3, encode_dict_state_v3
 from core.field_state_v3 import FieldStateV3, decode_field, encode_field
 from core.profile_v3 import (
     BYTE_TO_DIRECTION,
@@ -65,6 +66,7 @@ class PendingSendV3:
     candidate_field: FieldStateV3
     candidate_chain_secret: bytes  # 32 bytes
     candidate_next_seq: int
+    candidate_dict_state: DictStateV3 = DictStateV3()
 
     def __post_init__(self) -> None:
         if not (0 <= self.epoch <= MAX_UINT32):
@@ -118,6 +120,8 @@ class DirectionStateV3:
     closed: bool = False
     last_accepted: Optional[AcceptedRecordV3] = None
     pending_send: Optional[PendingSendV3] = None
+    dict_state: DictStateV3 = DictStateV3()
+    last_epoch_hash: bytes = b""
 
     def __post_init__(self) -> None:
         if self.direction not in DIRECTION_TO_BYTE:
@@ -202,6 +206,8 @@ def encode_direction_state(state: DirectionStateV3) -> bytes:
         (0x01 if state.closed else 0)
         | (0x02 if state.last_accepted is not None else 0)
         | (0x04 if state.pending_send is not None else 0)
+        | (0x08 if (state.dict_state.entries or state.dict_state.obs_counts) else 0)
+        | (0x10 if state.last_epoch_hash else 0)
     )
     out.extend(
         struct.pack(
@@ -231,6 +237,13 @@ def encode_direction_state(state: DirectionStateV3) -> bytes:
         out.extend(ps.candidate_chain_secret)
         out.extend(_lp(ps.packet_bytes))
         out.extend(_lp(encode_field(ps.candidate_field)))
+        out.extend(_lp(encode_dict_state_v3(ps.candidate_dict_state)))
+
+    if flags & 0x08:
+        out.extend(_lp(encode_dict_state_v3(state.dict_state)))
+
+    if flags & 0x10:
+        out.extend(_lp(state.last_epoch_hash))
 
     return bytes(out)
 
@@ -248,7 +261,7 @@ def decode_direction_state(raw: bytes) -> DirectionStateV3:
     off += 14
     if dir_b not in BYTE_TO_DIRECTION:
         raise SessionStateError(f"invalid direction byte: {dir_b}")
-    if flags & ~0x07:
+    if flags & ~0x1F:
         raise SessionStateError(f"invalid flags byte: {flags}")
     chain_secret = bb[off : off + 32]
     off += 32
@@ -289,6 +302,7 @@ def decode_direction_state(raw: bytes) -> DirectionStateV3:
         off += 32
         ps_pkt, off = _read_lp(bb, off)
         ps_cand_field_bytes, off = _read_lp(bb, off)
+        ps_cand_dict_bytes, off = _read_lp(bb, off)
         pending_send = PendingSendV3(
             epoch=ps_epoch,
             seq=ps_seq,
@@ -299,7 +313,17 @@ def decode_direction_state(raw: bytes) -> DirectionStateV3:
             candidate_field=decode_field(ps_cand_field_bytes),
             candidate_chain_secret=ps_cand_chain,
             candidate_next_seq=ps_cand_seq,
+            candidate_dict_state=decode_dict_state_v3(ps_cand_dict_bytes),
         )
+
+    dict_state = DictStateV3()
+    if flags & 0x08:
+        ds_bytes, off = _read_lp(bb, off)
+        dict_state = decode_dict_state_v3(ds_bytes)
+
+    last_epoch_hash = b""
+    if flags & 0x10:
+        last_epoch_hash, off = _read_lp(bb, off)
 
     if off != len(bb):
         raise SessionStateError("trailing bytes in DirectionStateV3")
@@ -314,4 +338,6 @@ def decode_direction_state(raw: bytes) -> DirectionStateV3:
         closed=bool(flags & 0x01),
         last_accepted=last_accepted,
         pending_send=pending_send,
+        dict_state=dict_state,
+        last_epoch_hash=last_epoch_hash,
     )

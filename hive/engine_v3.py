@@ -15,10 +15,18 @@ import hmac
 import struct
 from dataclasses import replace
 
-from core.codec_v3 import CodecV3Error, pack_strict_stream_v3, unpack_strict_stream_v3
+from core.codec_v3 import (
+    CodecV3Error,
+    OP_LITERAL_V3,
+    pack_adaptive_stream_v3,
+    pack_strict_stream_v3,
+    unpack_adaptive_stream_v3,
+    unpack_strict_stream_v3,
+)
 from core.field_state_v3 import AcceptedEventV3, advance_field, field_view
 from core.profile_v3 import (
     DIR_I2R,
+    FLAG_ADAPTIVE_CODEC,
     FLAG_ENCRYPTED_HEADER,
     MAX_UINT64,
     MSG_TYPE_ACK,
@@ -153,9 +161,18 @@ def prepare_send(
         vocab_blob = encode_strict_v3(
             content, vocab, max_plaintext_bytes=profile.max_plaintext_bytes
         )
-        inner_stream = pack_strict_stream_v3(
-            vocab_blob, max_plaintext_bytes=profile.max_plaintext_bytes
-        )
+        if profile.adaptive_codec_enabled:
+            inner_stream, cand_dict_state, _emitted_op = pack_adaptive_stream_v3(
+                vocab_blob,
+                dict_state=state.dict_state,
+                dict_key=state.dict_key,
+                max_plaintext_bytes=profile.max_plaintext_bytes,
+            )
+        else:
+            inner_stream = pack_strict_stream_v3(
+                vocab_blob, max_plaintext_bytes=profile.max_plaintext_bytes
+            )
+            cand_dict_state = state.dict_state
     except (VocabManifestError, CodecV3Error) as exc:
         reason = getattr(exc, "reason", "strict_vocab_encode_failed")
         raise EngineError(reason, str(exc)) from exc
@@ -164,7 +181,9 @@ def prepare_send(
     view = field_view(state.field, profile)
     keys = derive_message_keys(view, state.chain_secret, context)
 
-    flags = FLAG_ENCRYPTED_HEADER if profile.encrypted_headers else 0
+    flags = (FLAG_ENCRYPTED_HEADER if profile.encrypted_headers else 0) | (
+        FLAG_ADAPTIVE_CODEC if profile.adaptive_codec_enabled else 0
+    )
     body_ct_len = len(inner_stream) + 16
     total_body_len = body_ct_len + (80 if profile.encrypted_headers else 0)
 
@@ -224,6 +243,7 @@ def prepare_send(
         candidate_field=cand_field,
         candidate_chain_secret=cand_chain,
         candidate_next_seq=cand_next_seq,
+        candidate_dict_state=cand_dict_state,
     )
     pending_state = replace(state, pending_send=pending)
     candidate_next_state = replace(
@@ -232,6 +252,7 @@ def prepare_send(
         chain_secret=cand_chain,
         next_seq=cand_next_seq,
         pending_send=None,
+        dict_state=cand_dict_state,
     )
     return PreparedSendV3(
         packet_bytes=packet_bytes,
@@ -275,7 +296,9 @@ def validate_receive(
     if frame.direction != state.direction or context.direction != state.direction:
         raise EngineError("direction_mismatch")
 
-    expected_flags = FLAG_ENCRYPTED_HEADER if profile.encrypted_headers else 0
+    expected_flags = (FLAG_ENCRYPTED_HEADER if profile.encrypted_headers else 0) | (
+        FLAG_ADAPTIVE_CODEC if profile.adaptive_codec_enabled else 0
+    )
     if frame.flags != expected_flags:
         raise EngineError("flags_mismatch")
 
@@ -324,9 +347,18 @@ def validate_receive(
 
     # Full inner stream and strict vocabulary validation BEFORE advancing candidate state
     try:
-        vocab_blob = unpack_strict_stream_v3(
-            inner_stream, max_plaintext_bytes=profile.max_plaintext_bytes
-        )
+        if profile.adaptive_codec_enabled:
+            vocab_blob, next_dict_state, _op = unpack_adaptive_stream_v3(
+                inner_stream,
+                dict_state=state.dict_state,
+                dict_key=state.dict_key,
+                max_plaintext_bytes=profile.max_plaintext_bytes,
+            )
+        else:
+            vocab_blob = unpack_strict_stream_v3(
+                inner_stream, max_plaintext_bytes=profile.max_plaintext_bytes
+            )
+            next_dict_state = state.dict_state
         plaintext = decode_strict_v3(
             vocab_blob, vocab, max_plaintext_bytes=profile.max_plaintext_bytes
         )
@@ -369,6 +401,7 @@ def validate_receive(
         field=next_field,
         chain_secret=next_chain,
         next_seq=state.next_seq + 1,
+        dict_state=next_dict_state,
         last_accepted=AcceptedRecordV3(
             epoch=frame.epoch,
             seq=frame.seq,
@@ -439,5 +472,6 @@ def validate_ack(
         field=ps.candidate_field,
         chain_secret=ps.candidate_chain_secret,
         next_seq=ps.candidate_next_seq,
+        dict_state=ps.candidate_dict_state,
         pending_send=None,
     )
