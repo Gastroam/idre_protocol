@@ -164,6 +164,26 @@ def test_authenticated_store_consistency_on_deleted_outbox_and_tampered_duplicat
     val0 = validate_receive(sb.rx, prep0.packet_bytes, ctx0, profile=profile, vocab=vocab)
     commit_received(store_b, val0, session_id=sb.session_id)
 
+    # Case A0: Non-ASCII corrupted outbox status raises structured StateStoreError (not UnicodeEncodeError)
+    raw_a = sqlite3.connect(str(db_a))
+    raw_a.execute("UPDATE outbox SET status = 'pénding-💥';")
+    raw_a.commit()
+    raw_a.close()
+
+    with pytest.raises(StateStoreError) as exc_non_ascii:
+        store_a.get_pending_packet_bytes(sa.session_id, sa.tx.direction)
+    assert exc_non_ascii.value.reason == "corrupt_or_tampered_outbox"
+
+    with pytest.raises(StateStoreError) as exc_non_ascii_ack:
+        apply_ack(
+            store_a,
+            val0.ack_packet_bytes,
+            session_id=sa.session_id,
+            direction=sa.tx.direction,
+            profile=profile,
+        )
+    assert exc_non_ascii_ack.value.reason == "corrupt_or_tampered_outbox"
+
     # Case A: Delete pending outbox row in SQLite -> apply_ack MUST fail closed
     raw_a = sqlite3.connect(str(db_a))
     raw_a.execute("DELETE FROM outbox;")

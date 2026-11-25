@@ -357,6 +357,8 @@ class StateStoreV3:
         if row is None:
             raise StateStoreError("inconsistent_outbox", "pending_send missing outbox row")
         pkt, dig, status, mac = bytes(row[0]), bytes(row[1]), str(row[2]), bytes(row[3])
+        if status != "pending":
+            raise StateStoreError("corrupt_or_tampered_outbox", "unexpected outbox status")
         expected = self._mac(
             b"IDRE-V3-STORE-OUTBOX",
             session_id,
@@ -364,9 +366,9 @@ class StateStoreV3:
             struct.pack(">I Q", ps.epoch, ps.seq),
             pkt,
             dig,
-            status.encode("ascii"),
+            b"pending",
         )
-        if not hmac.compare_digest(mac, expected) or status != "pending":
+        if not hmac.compare_digest(mac, expected):
             raise StateStoreError("corrupt_or_tampered_outbox")
         if not hmac.compare_digest(pkt, ps.packet_bytes):
             raise StateStoreError("inconsistent_outbox", "outbox packet_bytes disagrees with pending_send")
@@ -593,6 +595,8 @@ def apply_ack(
             str(outbox_row[2]),
             bytes(outbox_row[3]),
         )
+        if ob_status != "pending":
+            raise StateStoreError("corrupt_or_tampered_outbox", "unexpected outbox status")
         expected_pending_mac = store._mac(
             b"IDRE-V3-STORE-OUTBOX",
             session_id,
@@ -600,11 +604,10 @@ def apply_ack(
             struct.pack(">I Q", ps.epoch, ps.seq),
             ob_pkt,
             ob_dig,
-            ob_status.encode("ascii"),
+            b"pending",
         )
         if (
-            ob_status != "pending"
-            or not hmac.compare_digest(ob_mac, expected_pending_mac)
+            not hmac.compare_digest(ob_mac, expected_pending_mac)
             or not hmac.compare_digest(ob_pkt, ps.packet_bytes)
             or not hmac.compare_digest(ob_dig, ps.packet_digest)
         ):

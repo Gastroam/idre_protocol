@@ -24,5 +24,5 @@ Implemented in [pointer_candidates.py](../../benchmarks/v3/pointer_candidates.py
 ## 3. Explicit Research Decision
 
 - **Functional feasibility:** `FeistelPointerV3` satisfies the P7 functional interface (invertible, collision-free mapping over `2 <= N <= 2^32` with `O(1)` auxiliary space and per-position context separation).
-- **Neural uniqueness (G4):** Because `KeyedHashPermutationBaseline` achieves the identical functional property under the same 32-byte entropy budget, intrinsic pointer hiding is a property of **keyed per-position format-preserving encryption**, not a unique property of neural weights.
+- **Neural uniqueness (G4):** Because `KeyedHashPermutationBaseline` achieves the identical functional property under the same 32-byte entropy budget, the demonstrated keyed-permutation property is a property of **keyed per-position format-preserving encryption**, not a unique property of neural weights.
 - **Protocol decision:** Retain **M1 (`wire_field_bound_m1`)** as the frozen `IDRE/3.0` shipping profile per owner decision D2. Keep `FeistelPointerV3` archived as an experimental laboratory reference (`IDRE/3.1-exp-pointer`) without claiming PRP security, unlinkability, or neural cryptographic novelty.
