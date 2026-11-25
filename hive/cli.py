@@ -42,6 +42,12 @@ def parse_int_tuple(value: str):
 def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParser:
     """Creates and returns the ArgumentParser for the Hive node."""
     ap = argparse.ArgumentParser(description=description)
+    ap.add_argument(
+        "--protocol-version",
+        choices=["v2", "v3"],
+        default="v2",
+        help="Explicit protocol version selection. v3 never falls back to v2.",
+    )
     ap.add_argument("--port", type=int, default=8890)
     ap.add_argument("--node-id", type=str, required=True)
     ap.add_argument("--seed", type=int, default=7245)
@@ -99,6 +105,33 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
 
 def configure_node_from_args(args) -> FieldBoundNode:
     """Instantiates and configures a FieldBoundNode based on parsed CLI arguments."""
+    protocol_version = str(getattr(args, "protocol_version", "v2")).strip().lower()
+    if protocol_version == "v3":
+        from core.profile_v3 import ProfileValidationError, max_usable_payload_bytes
+
+        if str(args.backend).lower().strip() != "lattice":
+            raise ProfileValidationError("v3 requires --backend lattice (frozen mode is forbidden)")
+        if not bool(args.enable_plasticity):
+            raise ProfileValidationError("v3 requires --enable-plasticity")
+        if bool(args.freeze_field):
+            raise ProfileValidationError("v3 forbids --freeze-field")
+        if str(args.content_codec).strip().lower() != "vocab":
+            raise ProfileValidationError("v3 requires --content-codec vocab")
+        if bool(args.vocab_allow_literals):
+            raise ProfileValidationError("v3 requires --no-vocab-allow-literals")
+        if str(args.healing_mode).strip().lower() != "none":
+            raise ProfileValidationError("v3 requires --healing-mode none")
+        if str(getattr(args, "offline_seed_ring", "")).strip():
+            raise ProfileValidationError("v3 forbids --offline-seed-ring")
+        usable = max_usable_payload_bytes()
+        if int(args.max_plaintext_bytes) > usable:
+            raise ProfileValidationError(
+                f"v3 --max-plaintext-bytes ({args.max_plaintext_bytes}) exceeds usable cell capacity ({usable})"
+            )
+        raise NotImplementedError(
+            "IDRE v3 runtime node is not yet wired (Tasks 4-6); refusing to fall back to v2."
+        )
+
     vocab: Optional[Vocab] = None
     vocab_registry: Optional[Dict[bytes, Vocab]] = None
     # IDRE v3: Vocab is MANDATORY for Substrate Initialization (Vector Space Folding)
