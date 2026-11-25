@@ -13,7 +13,8 @@
 Implemented in [pointer_candidates.py](../../benchmarks/v3/pointer_candidates.py) and tested in [test_pointer_candidates.py](../../tests/v3/test_pointer_candidates.py):
 
 1. **`FeistelPointerV3` (Candidate A):** 4-round balanced Feistel permutation with cycle-walking over exact domain `0..N-1`, keyed by `FieldViewV3.binding_bytes` and domain-separated per `(context, token_pos)`.
-   - **Inversion & Collisions:** 100% bijective (`0` collisions) across arbitrary `N >= 2`; `O(1)` decode time and `O(1)` memory.
+   - **Inversion & Collisions:** 100% bijective (`0` collisions) across arbitrary `N >= 2`; `O(1)` memory and **expected `O(1)`** encode/decode time (cycle-walking averages `< 4` iterations because `N > 2^(total_bits - 2)`, though worst-case iteration count is probabilistic rather than strict worst-case `O(1)`).
+   - **Small-domain security caveat:** A 4-round balanced Feistel network is **not** a proven strong PRP on tiny domains (e.g., `N = 4`, 2-bit halves) where Luby-Rackoff bounds do not apply. Any production small-domain inner-pointer scheme would require a reviewed small-domain FPE construction (e.g., Swap-or-Not or NIST SP 800-38G FF1 with a sufficient domain) rather than 4-round Feistel.
    - **Repeated-token leakage:** Eliminated across positions because `token_pos` is bound into every round; reusing `(state, context, token_pos)` leaks equality (proving per-position freshness is mandatory).
    - **Wrong-field behavior:** Produces a pseudorandom wrong index (requires outer AEAD or inner integrity tag to reject cleanly).
 2. **`KeyedHashPermutationBaseline` (Candidate B):** Identical Feistel bijection keyed by a 32-byte SHA-256 hash-state instead of the 64-dim neural field.

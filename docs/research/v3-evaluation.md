@@ -7,12 +7,14 @@
 
 ## 1. Matched-Baseline Comparison (Equal Provisioning, Vocab, Framing, AEAD)
 
-| Variant | Total Wire Bytes | Mean B/Msg | Canonical State Size | Accepted Round-Trip (median / p95 / p99 µs) | Field-Drift Reject (median / p95 µs) |
-| --- | ---: | ---: | ---: | --- | --- |
-| `psk_static` (no evolving state) | 40,086 | 133.62 | 40 B | 189.55 / 342.41 / 489.21 | n/a |
-| `hash_state_machine` (32B SHA-256 chain) | 40,086 | 133.62 | 72 B | 293.99 / 438.61 / 558.54 | n/a |
-| `idre_v3_strict` (Q16.16 neural field, dict OFF) | 40,086 | 133.62 | 1,370 B | 642.90 / 860.95 / 991.47 | 180.15 / 325.33 |
-| `idre_v3_adaptive` (Q16.16 neural field, dict ON) | **32,148** (-19.8%) | **107.16** | 1,767 B | 655.23 / 929.74 / 1,109.35 | 175.47 / 216.72 |
+| Variant | DATA Wire Bytes | ACK Wire Bytes | Total Wire Bytes | Mean Total B/Msg | Canonical State Size | Accepted Round-Trip (median / p95 / p99 µs) | Field-Drift Reject (median / p95 µs) |
+| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |
+| `psk_static` (no evolving state, no ACK) | 40,086 | 0 | 40,086 | 133.62 | 40 B | 175.47 / 234.94 / 334.05 | n/a |
+| `hash_state_machine` (32B SHA-256 chain, no ACK) | 40,086 | 0 | 40,086 | 133.62 | 72 B | 290.05 / 363.67 / 445.88 | n/a |
+| `idre_v3_strict` (Q16.16 field, dict OFF, stop-and-wait ACK) | 40,086 | 39,300 | 79,386 | 264.62 | 1,370 B | 644.91 / 919.77 / 1,019.76 | 174.92 / 252.99 |
+| `idre_v3_adaptive` (Q16.16 field, dict ON, stop-and-wait ACK) | **32,148** (-19.8%) | 39,300 | **71,448** (-10.0% vs strict) | **238.16** | 1,767 B | 651.58 / 889.42 / 1,065.32 | 213.42 / 272.12 |
+
+*Note on ACK overhead:* Each authenticated v3 stop-and-wait ACK frame is 131 bytes (54B outer header + 61B ACK payload + 16B Poly1305 tag = 39,300 B over 300 messages). `psk_static` and `hash_state_machine` omit stop-and-wait ACKs, so DATA bytes are compared directly in column 2 while full bidirectional wire traffic (DATA + ACK) is reported in column 4.
 
 ## 2. Negative Control & Isolated Divergence Controls
 

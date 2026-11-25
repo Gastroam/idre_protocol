@@ -16,8 +16,15 @@ def test_matched_baseline_matrix_and_negative_controls():
         "idre_v3_adaptive",
     }
 
-    # Adaptive compression should reduce wire bytes on the repeated-phrase workload
+    # Adaptive compression reduces DATA bytes and total DATA+ACK wire bytes
+    assert by_name["idre_v3_adaptive"]["data_wire_bytes"] < by_name["idre_v3_strict"]["data_wire_bytes"]
     assert by_name["idre_v3_adaptive"]["total_wire_bytes"] < by_name["idre_v3_strict"]["total_wire_bytes"]
+    for name in ("idre_v3_strict", "idre_v3_adaptive"):
+        assert by_name[name]["ack_wire_bytes"] > 0
+        assert (
+            by_name[name]["total_wire_bytes"]
+            == by_name[name]["data_wire_bytes"] + by_name[name]["ack_wire_bytes"]
+        )
 
     # Negative control: full deterministic clone MUST track 100% under the stated model
     controls = report["controls"]

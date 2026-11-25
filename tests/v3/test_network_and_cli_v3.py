@@ -8,18 +8,20 @@ from pathlib import Path
 
 from core.profile_v3 import compute_vocab_digest_v3
 from core.vocab_codec import load_vocab
-from hive.cli import configure_node_from_args, get_node_argparser
+from hive.cli import get_node_argparser
 from hive.client_v3 import HiveClientV3
 from hive.node_v3 import FieldBoundNodeV3
-from hive.server_v3 import create_server_v3
+from scripts.hive_v12_node_server import build_server_from_args
 
 
-def _build_node_via_cli(tmp_path: Path, node_id: str, vocab_path: Path, vocab_digest_hex: str) -> FieldBoundNodeV3:
+def _build_server_via_launcher(tmp_path: Path, node_id: str, vocab_path: Path, vocab_digest_hex: str):
     ap = get_node_argparser()
     args = ap.parse_args(
         [
             "--protocol-version",
             "v3",
+            "--port",
+            "0",
             "--node-id",
             node_id,
             "--backend",
@@ -47,23 +49,18 @@ def _build_node_via_cli(tmp_path: Path, node_id: str, vocab_path: Path, vocab_di
             "--adaptive-codec",
         ]
     )
-    # Remove default "vocab.jsonl" injected by argparse append default
-    args.vocab_file = [str(vocab_path)]
-    node = configure_node_from_args(args)
+    srv, node = build_server_from_args(args, host="127.0.0.1")
     assert isinstance(node, FieldBoundNodeV3)
-    return node
+    return srv, node
 
 
-def test_live_http_v3_cli_handshake_send_retry_and_ack(tmp_path: Path):
+def test_live_http_v3_launcher_handshake_send_retry_ack_and_restart(tmp_path: Path):
     vocab_path = tmp_path / "vocab.json"
     vocab_path.write_text(json.dumps(["red", "blue", "green", " "]), encoding="utf-8")
     digest_hex = compute_vocab_digest_v3(load_vocab(str(vocab_path))).hex()
 
-    node_a = _build_node_via_cli(tmp_path, "A", vocab_path, digest_hex)
-    node_b = _build_node_via_cli(tmp_path, "B", vocab_path, digest_hex)
-
-    srv_a = create_server_v3(node_a, host="127.0.0.1", port=0)
-    srv_b = create_server_v3(node_b, host="127.0.0.1", port=0)
+    srv_a, node_a = _build_server_via_launcher(tmp_path, "A", vocab_path, digest_hex)
+    srv_b, node_b = _build_server_via_launcher(tmp_path, "B", vocab_path, digest_hex)
     t_a = threading.Thread(target=srv_a.serve_forever, daemon=True)
     t_b = threading.Thread(target=srv_b.serve_forever, daemon=True)
     t_a.start()
@@ -82,7 +79,7 @@ def test_live_http_v3_cli_handshake_send_retry_and_ack(tmp_path: Path):
         sid_hex = client_a.mutual_handshake(client_b, initiator_id="A", responder_id="B")
         assert len(bytes.fromhex(sid_hex)) == 16
 
-        # 2. Send DATA over HTTP, simulate lost ACK, retransmit exact bytes, then deliver ACK
+        # 2. Send seq=0 DATA over HTTP, simulate lost ACK, retransmit exact bytes, then deliver ACK
         c_send, r_send = client_a.send("B", "red blue")
         assert c_send == 200
         pkt_hex = r_send["packet_hex"]
@@ -117,3 +114,32 @@ def test_live_http_v3_cli_handshake_send_retry_and_ack(tmp_path: Path):
         srv_b.server_close()
         node_a.close()
         node_b.close()
+
+    # 3. Restart both nodes from the persisted SQLite DBs -> sessions MUST hydrate without re-handshaking
+    srv_a2, node_a2 = _build_server_via_launcher(tmp_path, "A", vocab_path, digest_hex)
+    srv_b2, node_b2 = _build_server_via_launcher(tmp_path, "B", vocab_path, digest_hex)
+    t_a2 = threading.Thread(target=srv_a2.serve_forever, daemon=True)
+    t_b2 = threading.Thread(target=srv_b2.serve_forever, daemon=True)
+    t_a2.start()
+    t_b2.start()
+    try:
+        client_a2 = HiveClientV3(f"http://127.0.0.1:{srv_a2.server_address[1]}")
+        client_b2 = HiveClientV3(f"http://127.0.0.1:{srv_b2.server_address[1]}")
+
+        # Continue directly at seq=1 without a new handshake
+        c_s1, r_s1 = client_a2.send("B", "green red")
+        assert c_s1 == 200, f"send after restart failed: {r_s1}"
+        c_r1, r_r1 = client_b2.receive("A", r_s1["packet_hex"])
+        assert c_r1 == 200 and r_r1["status"] == "delivered" and r_r1["seq"] == 1
+        c_k1, r_k1 = client_a2.ack("B", r_r1["ack_hex"])
+        assert c_k1 == 200 and r_k1["new_next_seq"] == 2 and r_k1["new_field_age"] == 2
+
+        inbox2 = client_b2.inbox("A")
+        assert [r["plaintext"] for r in inbox2] == ["red blue", "green red"]
+    finally:
+        srv_a2.shutdown()
+        srv_b2.shutdown()
+        srv_a2.server_close()
+        srv_b2.server_close()
+        node_a2.close()
+        node_b2.close()

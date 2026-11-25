@@ -24,7 +24,7 @@ import sqlite3
 import struct
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from core.profile_v3 import MAX_UINT64, ProfileV3
 from core.session_v3 import (
@@ -128,6 +128,20 @@ class StateStoreV3:
             )
             self._conn.execute(
                 """
+                CREATE TABLE IF NOT EXISTS sessions (
+                    peer_node_id TEXT PRIMARY KEY,
+                    session_id BLOB NOT NULL,
+                    local_node_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    transcript_hash BLOB NOT NULL,
+                    tx_direction TEXT NOT NULL,
+                    rx_direction TEXT NOT NULL,
+                    row_mac BLOB NOT NULL
+                );
+                """
+            )
+            self._conn.execute(
+                """
                 CREATE TABLE IF NOT EXISTS direction_states (
                     session_id BLOB NOT NULL,
                     direction TEXT NOT NULL,
@@ -215,15 +229,93 @@ class StateStoreV3:
             raise StateStoreError("corrupt_or_tampered_state", str(exc)) from exc
 
     def save_session(self, session: SessionV3) -> None:
-        """Persist both directional states of a newly confirmed SessionV3 atomically."""
+        """Persist session metadata and both directional states atomically."""
+        sess_mac = self._mac(
+            b"IDRE-V3-STORE-SESSION",
+            session.peer_node_id.encode("utf-8"),
+            session.session_id,
+            session.local_node_id.encode("utf-8"),
+            session.role.encode("ascii"),
+            session.transcript_hash,
+            session.tx.direction.encode("ascii"),
+            session.rx.direction.encode("ascii"),
+        )
         self._conn.execute("BEGIN IMMEDIATE;")
         try:
+            self._conn.execute(
+                """
+                INSERT INTO sessions(
+                    peer_node_id, session_id, local_node_id, role,
+                    transcript_hash, tx_direction, rx_direction, row_mac
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(peer_node_id) DO UPDATE SET
+                    session_id = excluded.session_id,
+                    local_node_id = excluded.local_node_id,
+                    role = excluded.role,
+                    transcript_hash = excluded.transcript_hash,
+                    tx_direction = excluded.tx_direction,
+                    rx_direction = excluded.rx_direction,
+                    row_mac = excluded.row_mac;
+                """,
+                (
+                    session.peer_node_id,
+                    session.session_id,
+                    session.local_node_id,
+                    session.role,
+                    session.transcript_hash,
+                    session.tx.direction,
+                    session.rx.direction,
+                    sess_mac,
+                ),
+            )
             self._put_direction_in_tx(session.session_id, session.tx)
             self._put_direction_in_tx(session.session_id, session.rx)
             self._conn.execute("COMMIT;")
         except Exception:
             self._conn.execute("ROLLBACK;")
             raise
+
+    def load_sessions(self, *, profile: ProfileV3, local_node_id: str) -> Dict[str, SessionV3]:
+        """Hydrate and verify all persisted sessions on node restart; fails closed on tamper."""
+        rows = self._conn.execute(
+            """
+            SELECT peer_node_id, session_id, local_node_id, role,
+                   transcript_hash, tx_direction, rx_direction, row_mac
+            FROM sessions;
+            """
+        ).fetchall()
+        sessions: Dict[str, SessionV3] = {}
+        for peer_id, sid_raw, loc_id, role, tr_raw, tx_dir, rx_dir, mac_raw in rows:
+            sid = bytes(sid_raw)
+            tr_hash = bytes(tr_raw)
+            expected = self._mac(
+                b"IDRE-V3-STORE-SESSION",
+                str(peer_id).encode("utf-8"),
+                sid,
+                str(loc_id).encode("utf-8"),
+                str(role).encode("ascii"),
+                tr_hash,
+                str(tx_dir).encode("ascii"),
+                str(rx_dir).encode("ascii"),
+            )
+            if not hmac.compare_digest(bytes(mac_raw), expected):
+                raise StateStoreError("corrupt_or_tampered_session_metadata")
+            if str(loc_id) != str(local_node_id):
+                raise StateStoreError("session_local_node_id_mismatch")
+            tx_state = self._get_direction_in_tx(sid, str(tx_dir))
+            rx_state = self._get_direction_in_tx(sid, str(rx_dir))
+            sessions[str(peer_id)] = SessionV3(
+                profile=profile,
+                session_id=sid,
+                local_node_id=str(loc_id),
+                peer_node_id=str(peer_id),
+                role=str(role),
+                transcript_hash=tr_hash,
+                tx=tx_state,
+                rx=rx_state,
+            )
+        return sessions
 
     def load_direction(self, session_id: bytes, direction: str) -> DirectionStateV3:
         """Load and verify a persisted directional state; fails closed if missing or tampered."""

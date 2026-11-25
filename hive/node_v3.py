@@ -70,7 +70,10 @@ class FieldBoundNodeV3:
         self.node_id = bundle.local_node_id
         self.store = StateStoreV3(db_path, storage_key=storage_key)
         self._lock = threading.RLock()
-        self._sessions: Dict[str, SessionV3] = {}
+        self._sessions: Dict[str, SessionV3] = self.store.load_sessions(
+            profile=self.profile,
+            local_node_id=self.node_id,
+        )
         self._pending_init: Dict[str, Tuple[bytes, bytes]] = {}  # peer_id -> (session_id, init_nonce)
         self._pending_resp: Dict[str, Tuple[TranscriptV3, SessionV3]] = {}  # peer_id -> (transcript, candidate)
 

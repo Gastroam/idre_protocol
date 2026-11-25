@@ -165,8 +165,11 @@ def run_psk_baseline(workload: List[str], tmp_dir: Path) -> Dict[str, Any]:
     return {
         "variant": "psk_static",
         "messages": len(workload),
+        "data_wire_bytes": wire_bytes,
+        "ack_wire_bytes": 0,
         "total_wire_bytes": wire_bytes,
-        "mean_wire_bytes": round(wire_bytes / len(workload), 2),
+        "mean_data_wire_bytes": round(wire_bytes / len(workload), 2),
+        "mean_total_wire_bytes": round(wire_bytes / len(workload), 2),
         "state_size_bytes": 32 + 8,  # 32B key + 8B seq
         "accepted_roundtrip": _percentiles_us(lat_ns),
     }
@@ -220,8 +223,11 @@ def run_hash_state_baseline(workload: List[str], tmp_dir: Path) -> Dict[str, Any
     return {
         "variant": "hash_state_machine",
         "messages": len(workload),
+        "data_wire_bytes": wire_bytes,
+        "ack_wire_bytes": 0,
         "total_wire_bytes": wire_bytes,
-        "mean_wire_bytes": round(wire_bytes / len(workload), 2),
+        "mean_data_wire_bytes": round(wire_bytes / len(workload), 2),
+        "mean_total_wire_bytes": round(wire_bytes / len(workload), 2),
         "state_size_bytes": 32 + 32 + 8,  # 32B state + 32B chain + 8B seq
         "accepted_roundtrip": _percentiles_us(lat_ns),
     }
@@ -233,13 +239,15 @@ def run_idre_v3_variant(workload: List[str], tmp_dir: Path, *, adaptive: bool) -
     tx, rx = sa.tx, sb.rx
 
     lat_ns: List[int] = []
-    wire_bytes = 0
+    data_wire_bytes = 0
+    ack_wire_bytes = 0
     for seq, msg in enumerate(workload):
         ctx = direction_message_context(sa, direction=tx.direction, epoch=1, seq=seq)
         t0 = time.perf_counter_ns()
         prep = prepare_send(tx, msg, ctx, profile=profile, vocab=vocab)
-        wire_bytes += len(prep.packet_bytes)
+        data_wire_bytes += len(prep.packet_bytes)
         val = validate_receive(rx, prep.packet_bytes, ctx, profile=profile, vocab=vocab)
+        ack_wire_bytes += len(val.ack_packet_bytes)
         tx = validate_ack(prep.pending_state, val.ack_packet_bytes, profile=profile, session_id=sa.session_id)
         rx = val.next_state
         t1 = time.perf_counter_ns()
@@ -260,11 +268,15 @@ def run_idre_v3_variant(workload: List[str], tmp_dir: Path, *, adaptive: bool) -
             pass
         rej_ns.append(time.perf_counter_ns() - t0)
 
+    total_wire_bytes = data_wire_bytes + ack_wire_bytes
     return {
         "variant": "idre_v3_adaptive" if adaptive else "idre_v3_strict",
         "messages": len(workload),
-        "total_wire_bytes": wire_bytes,
-        "mean_wire_bytes": round(wire_bytes / len(workload), 2),
+        "data_wire_bytes": data_wire_bytes,
+        "ack_wire_bytes": ack_wire_bytes,
+        "total_wire_bytes": total_wire_bytes,
+        "mean_data_wire_bytes": round(data_wire_bytes / len(workload), 2),
+        "mean_total_wire_bytes": round(total_wire_bytes / len(workload), 2),
         "state_size_bytes": len(encode_direction_state(rx)),
         "accepted_roundtrip": _percentiles_us(lat_ns),
         "rejected_field_drift": _percentiles_us(rej_ns),

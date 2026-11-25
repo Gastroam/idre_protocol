@@ -1,5 +1,5 @@
 {
-  "commit": "4c1f98ab575b624871d9a68dcd39cbdf87c55c7f",
+  "commit": "251a9981cea7f83cac05f738206a8014d026ca3e",
   "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
   "python": "3.12.3",
   "numpy": "2.4.4",
@@ -9,59 +9,71 @@
     {
       "variant": "psk_static",
       "messages": 300,
+      "data_wire_bytes": 40086,
+      "ack_wire_bytes": 0,
       "total_wire_bytes": 40086,
-      "mean_wire_bytes": 133.62,
+      "mean_data_wire_bytes": 133.62,
+      "mean_total_wire_bytes": 133.62,
       "state_size_bytes": 40,
       "accepted_roundtrip": {
-        "median_us": 189.55,
-        "p95_us": 342.41,
-        "p99_us": 489.21
+        "median_us": 175.47,
+        "p95_us": 234.94,
+        "p99_us": 334.05
       }
     },
     {
       "variant": "hash_state_machine",
       "messages": 300,
+      "data_wire_bytes": 40086,
+      "ack_wire_bytes": 0,
       "total_wire_bytes": 40086,
-      "mean_wire_bytes": 133.62,
+      "mean_data_wire_bytes": 133.62,
+      "mean_total_wire_bytes": 133.62,
       "state_size_bytes": 72,
       "accepted_roundtrip": {
-        "median_us": 293.99,
-        "p95_us": 438.61,
-        "p99_us": 558.54
+        "median_us": 290.05,
+        "p95_us": 363.67,
+        "p99_us": 445.88
       }
     },
     {
       "variant": "idre_v3_strict",
       "messages": 300,
-      "total_wire_bytes": 40086,
-      "mean_wire_bytes": 133.62,
+      "data_wire_bytes": 40086,
+      "ack_wire_bytes": 39300,
+      "total_wire_bytes": 79386,
+      "mean_data_wire_bytes": 133.62,
+      "mean_total_wire_bytes": 264.62,
       "state_size_bytes": 1370,
       "accepted_roundtrip": {
-        "median_us": 642.9,
-        "p95_us": 860.95,
-        "p99_us": 991.47
+        "median_us": 644.91,
+        "p95_us": 919.77,
+        "p99_us": 1019.76
       },
       "rejected_field_drift": {
-        "median_us": 180.15,
-        "p95_us": 325.33,
-        "p99_us": 400.01
+        "median_us": 174.92,
+        "p95_us": 252.99,
+        "p99_us": 273.45
       }
     },
     {
       "variant": "idre_v3_adaptive",
       "messages": 300,
-      "total_wire_bytes": 32148,
-      "mean_wire_bytes": 107.16,
+      "data_wire_bytes": 32148,
+      "ack_wire_bytes": 39300,
+      "total_wire_bytes": 71448,
+      "mean_data_wire_bytes": 107.16,
+      "mean_total_wire_bytes": 238.16,
       "state_size_bytes": 1767,
       "accepted_roundtrip": {
-        "median_us": 655.23,
-        "p95_us": 929.74,
-        "p99_us": 1109.35
+        "median_us": 651.58,
+        "p95_us": 889.42,
+        "p99_us": 1065.32
       },
       "rejected_field_drift": {
-        "median_us": 175.47,
-        "p95_us": 216.72,
-        "p99_us": 322.93
+        "median_us": 213.42,
+        "p95_us": 272.12,
+        "p99_us": 403.38
       }
     }
   ],

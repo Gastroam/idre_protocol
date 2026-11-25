@@ -89,7 +89,7 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
     
     # Codec / Vocab
     ap.add_argument("--content-codec", choices=["utf8", "vocab"], default="utf8")
-    ap.add_argument("--vocab-file", action="append", default=["vocab.jsonl"], help="Defaults to vocab.jsonl if not provided.")
+    ap.add_argument("--vocab-file", action="append", default=None, help="Defaults to vocab.jsonl if not provided.")
     ap.add_argument("--vocab-allow-literals", action=argparse.BooleanOptionalAction, default=True)
     ap.add_argument("--max-plaintext-bytes", type=int, default=65535)
     
