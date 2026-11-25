@@ -1,0 +1,59 @@
+{
+  "numeric_profile": "fixed_point_i64_q16",
+  "stimulus_mode": "constant_stimulus_v1",
+  "bundle_id_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expected_vocab_digest_hex": "bbb4c636dc71e173a83002d908b85e0aa764d69dfd461122ed41d4c704db91fc",
+  "field_seed_hex": "33a5d1be6ddb3b0adbd169eb95bb0749e0bf8b630e3bad60e2b442715c5d0d41",
+  "context_utf8": "kat:i2r:v3",
+  "immutable_anchor_ids": [
+    7245,
+    8888
+  ],
+  "learning_rate_q16": 32768,
+  "anchor_weight_q16": 5242880,
+  "embedding_dim": 64,
+  "checkpoints": {
+    "0": {
+      "encode_sha256": "ee720baf615764c32ae273549f6a282d178eb9476fb1bfdd9d5ecdab0f03f705",
+      "view_binding_hex": "58a4b0a0a3256930c71593460a6f0944d58701fc90a05fe0b4f4c16b45875452",
+      "bias_q16": -131072,
+      "w0_q16": -2300,
+      "v0_q16": 0
+    },
+    "1": {
+      "encode_sha256": "1aa281c2593dd0f3629650fd4982af7b24d909087ac87231f044ccd1ac9b7128",
+      "view_binding_hex": "eeafd56e960eec6be2d8e83af71923d94f83d0b3ceba623180b2387e0e479d21",
+      "bias_q16": -107324,
+      "w0_q16": -1113,
+      "v0_q16": 1187
+    },
+    "10": {
+      "encode_sha256": "b6498fecb3b9d9c69493d87530eb7e4469f57a7958e2b644d3bbb453117b677c",
+      "view_binding_hex": "e6989468eb4ea1cd7f40234dadc901c187f058ea24a67e6adfd13e90499da63d",
+      "bias_q16": -15727,
+      "w0_q16": 27340,
+      "v0_q16": 3113
+    },
+    "100": {
+      "encode_sha256": "170b6849463b98b7e87f9df57bd2c9e22a2b1c9a8c52e6abecc5e43d1433766a",
+      "view_binding_hex": "80e8d53c2663433abba83549a1c2042c0588dd21f23f72fa7e09af45716e0ee4",
+      "bias_q16": 34453,
+      "w0_q16": 79486,
+      "v0_q16": 104
+    },
+    "1000": {
+      "encode_sha256": "665b6e8707409608a0858957a4b091a0dd19b9eccacbc07a62e4bc06b2f188b8",
+      "view_binding_hex": "7e78d882c43923dd662a60dfe673ccaf9778140187193fd99a503acfc96705fa",
+      "bias_q16": 72998,
+      "w0_q16": 102820,
+      "v0_q16": 14
+    },
+    "10000": {
+      "encode_sha256": "5131401c398ac07bdd08f58073a77199196dc7de9653a51d7d2b7851d09ceaac",
+      "view_binding_hex": "26e83aa08df480c253334eaaf28b57720071925256659d33ef1cb6affc21056b",
+      "bias_q16": 103415,
+      "w0_q16": 143115,
+      "v0_q16": 4
+    }
+  }
+}
