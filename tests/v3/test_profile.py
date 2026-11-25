@@ -219,8 +219,8 @@ def test_cli_v3_version_selection_rejects_downgrade_and_bad_flags(tmp_path: Path
     with pytest.raises(ProfileValidationError, match="plasticity"):
         configure_node_from_args(bad_v3)
 
-    # Valid v3 flags refuse silent fallback to v2 until v3 runtime is wired
-    valid_v3 = ap.parse_args(
+    # v3 missing required provisioning secrets fails closed and never falls back to v2
+    incomplete_v3 = ap.parse_args(
         [
             "--protocol-version",
             "v3",
@@ -238,5 +238,5 @@ def test_cli_v3_version_selection_rejects_downgrade_and_bad_flags(tmp_path: Path
             "4023",
         ]
     )
-    with pytest.raises(NotImplementedError, match="refusing to fall back to v2"):
-        configure_node_from_args(valid_v3)
+    with pytest.raises(ProfileValidationError, match="refusing to fall back to v2"):
+        configure_node_from_args(incomplete_v3)

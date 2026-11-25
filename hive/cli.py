@@ -100,14 +100,31 @@ def get_node_argparser(description="Hive Node Server") -> argparse.ArgumentParse
         default="",
         help="Comma-separated list of seeds for offline ghost recovery. INTERNAL ONLY.",
     )
-    
+
+    # IDRE v3 Provisioning & Durable Store options (used only when --protocol-version v3)
+    ap.add_argument("--state-db", type=str, default="", help="SQLite durable state store path (v3).")
+    ap.add_argument("--bundle-id-hex", type=str, default="", help="16-byte opaque public bundle ID hex (v3).")
+    ap.add_argument("--expected-vocab-digest-hex", type=str, default="", help="32-byte trusted vocab SHA-256 hex (v3).")
+    ap.add_argument("--network-secret-hex", type=str, default="", help=">=32-byte network secret hex (or IDRE_V3_NETWORK_SECRET_HEX).")
+    ap.add_argument("--field-init-secret-hex", type=str, default="", help=">=32-byte field init secret hex (or IDRE_V3_FIELD_INIT_SECRET_HEX).")
+    ap.add_argument("--storage-key-hex", type=str, default="", help=">=32-byte local store MAC key hex (or IDRE_V3_STORAGE_KEY_HEX).")
+    ap.add_argument("--encrypted-headers", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--adaptive-codec", action=argparse.BooleanOptionalAction, default=False)
+
     return ap
 
 def configure_node_from_args(args) -> FieldBoundNode:
     """Instantiates and configures a FieldBoundNode based on parsed CLI arguments."""
     protocol_version = str(getattr(args, "protocol_version", "v2")).strip().lower()
     if protocol_version == "v3":
-        from core.profile_v3 import ProfileValidationError, max_usable_payload_bytes
+        from core.profile_v3 import (
+            ProfileV3,
+            ProfileValidationError,
+            ProvisioningBundleV3,
+            max_usable_payload_bytes,
+        )
+        from core.vocab_v3 import load_vocab_strict_v3
+        from hive.node_v3 import FieldBoundNodeV3
 
         if str(args.backend).lower().strip() != "lattice":
             raise ProfileValidationError("v3 requires --backend lattice (frozen mode is forbidden)")
@@ -123,13 +140,52 @@ def configure_node_from_args(args) -> FieldBoundNode:
             raise ProfileValidationError("v3 requires --healing-mode none")
         if str(getattr(args, "offline_seed_ring", "")).strip():
             raise ProfileValidationError("v3 forbids --offline-seed-ring")
-        usable = max_usable_payload_bytes()
+
+        enc_hdrs = bool(getattr(args, "encrypted_headers", False))
+        usable = max_usable_payload_bytes(encrypted_headers=enc_hdrs)
         if int(args.max_plaintext_bytes) > usable:
             raise ProfileValidationError(
                 f"v3 --max-plaintext-bytes ({args.max_plaintext_bytes}) exceeds usable cell capacity ({usable})"
             )
-        raise NotImplementedError(
-            "IDRE v3 runtime node is not yet wired (Tasks 4-6); refusing to fall back to v2."
+
+        bundle_id_hex = str(getattr(args, "bundle_id_hex", "")).strip()
+        vocab_dig_hex = str(getattr(args, "expected_vocab_digest_hex", "")).strip()
+        net_hex = str(getattr(args, "network_secret_hex", "") or os.environ.get("IDRE_V3_NETWORK_SECRET_HEX", "")).strip()
+        fld_hex = str(getattr(args, "field_init_secret_hex", "") or os.environ.get("IDRE_V3_FIELD_INIT_SECRET_HEX", "")).strip()
+        store_hex = str(getattr(args, "storage_key_hex", "") or os.environ.get("IDRE_V3_STORAGE_KEY_HEX", "")).strip()
+        state_db = str(getattr(args, "state_db", "")).strip()
+
+        if not (bundle_id_hex and vocab_dig_hex and net_hex and fld_hex and store_hex and state_db):
+            raise ProfileValidationError(
+                "v3 requires --state-db, --bundle-id-hex, --expected-vocab-digest-hex, "
+                "--network-secret-hex, --field-init-secret-hex, and --storage-key-hex (refusing to fall back to v2)"
+            )
+
+        bundle_id = bytes.fromhex(bundle_id_hex)
+        expected_digest = bytes.fromhex(vocab_dig_hex)
+        vocab_files = list(args.vocab_file or [])
+        if len(vocab_files) != 1:
+            raise ProfileValidationError("v3 requires exactly one --vocab-file")
+        vocab_v3 = load_vocab_strict_v3(vocab_files[0], expected_vocab_digest=expected_digest)
+        profile = ProfileV3(
+            bundle_id=bundle_id,
+            expected_vocab_digest=expected_digest,
+            encrypted_headers=enc_hdrs,
+            adaptive_codec_enabled=bool(getattr(args, "adaptive_codec", False)),
+            max_plaintext_bytes=int(args.max_plaintext_bytes),
+        )
+        bundle = ProvisioningBundleV3(
+            profile=profile,
+            network_secret=bytes.fromhex(net_hex),
+            field_init_secret=bytes.fromhex(fld_hex),
+            expected_vocab_digest=expected_digest,
+            local_node_id=str(args.node_id),
+        )
+        return FieldBoundNodeV3(
+            bundle=bundle,
+            vocab=vocab_v3,
+            db_path=state_db,
+            storage_key=bytes.fromhex(store_hex),
         )
 
     vocab: Optional[Vocab] = None

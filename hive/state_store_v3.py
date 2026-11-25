@@ -94,7 +94,11 @@ class StateStoreV3:
         self._db_path = str(db_path)
         self._storage_key = bytes(storage_key)
         self._crash_hook = crash_hook
-        self._conn = sqlite3.connect(self._db_path, isolation_level=None)
+        self._conn = sqlite3.connect(
+            self._db_path,
+            isolation_level=None,
+            check_same_thread=False,
+        )
         self._conn.execute("PRAGMA journal_mode=WAL;")
         self._conn.execute("PRAGMA synchronous=FULL;")
         self._conn.execute("PRAGMA foreign_keys=ON;")
