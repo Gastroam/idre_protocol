@@ -8,9 +8,26 @@ version = "0.1.0"
 description = "IDRE Protocol V12 Clean Implementation"
 readme = "README.md"
 requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.0",
+    "cryptography>=41.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
 
 [tool.setuptools]
-packages = ["core", "hive", "scripts", "attacks"]
+packages = [
+    "core",
+    "hive",
+    "scripts",
+    "attacks",
+    "vendor",
+    "vendor.mti_evo",
+    "vendor.mti_evo.core",
+]
 
 [tool.ruff]
 line-length = 120
